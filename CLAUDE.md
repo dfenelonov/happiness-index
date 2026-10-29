@@ -39,13 +39,19 @@
 ## Команды
 
 ```bash
-docker compose up -d db           # Postgres
-uv sync                           # зависимости (или pip install -e ".[dev]")
-uv run alembic upgrade head       # миграции
+docker compose up -d --wait db    # только Postgres (для локального uvicorn)
+docker compose up -d --build      # app + Postgres; миграции применяются при старте контейнера
+uv sync                           # зависимости, включая dev-группу
+uv run alembic upgrade head       # миграции (DATABASE_URL из .env)
+uv run alembic revision --autogenerate -m "..."   # новая миграция после правки app/db/models.py
 uv run uvicorn app.main:app --reload
-uv run pytest
+uv run pytest                     # включает проверку «миграции == модели» на SQLite
 uv run ruff check . && uv run ruff format .
+curl localhost:8000/healthz
 ```
+
+Если порты 5432/8000 заняты, задай `DB_PORT` / `APP_PORT` (в `.env` или в окружении) и поправь порт
+в `DATABASE_URL`.
 
 Если какой-то команды ещё нет — создай её на соответствующем этапе `docs/PLAN.md` и обнови этот раздел.
 

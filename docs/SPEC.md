@@ -164,18 +164,23 @@ MVP проверяет три ключевых допущения финмоде
 sessions      id (uuid), sid_hash, created_at, utm_source, utm_medium, utm_campaign, ref_public_id,
               price_variant (490|690|990), consent_at, consent_version
 answers       session_id, item_id, value, answered_at          -- кроме блока screening
+              PK (session_id, item_id): при «назад» ответ перезаписывается (upsert)
 results       session_id, public_id, swls_raw, happiness_index, trait_E/A/C/N/O (1–5),
-              archetype_id, leaks (json, 3 id), vciom_answer, screening_flag (bool), completed_at
-orders        id, session_id, amount_rub, status, yookassa_payment_id, email_hash, created_at, paid_at,
-              refunded_at
-reports       order_id, token, status (pending|ready|fallback|failed), content_json, provider, model,
-              tokens_in, tokens_out, created_at
-leads         id, email, source (sub_fakedoor), session_id, consent_at
+              archetype_id, domain_scores (json, домен → балл 1–5), leaks (json, 3 id), vciom_answer,
+              screening_flag (bool), completed_at
+orders        id, session_id, amount_rub, status, yookassa_payment_id (unique), email_encrypted,
+              email_hash, created_at, paid_at, refunded_at
+reports       order_id (PK — один отчёт на заказ), token, status (pending|ready|fallback|failed),
+              content_json, provider, model, tokens_in, tokens_out, created_at
+leads         id, email_encrypted, email_hash, source (sub_fakedoor), session_id, consent_at
 events        id, session_id, name, props (json), created_at
 ```
 
-- Email в `orders` хранится в зашифрованном виде (Fernet, ключ из `.env`), плюс хеш для поиска.
-- Индексы: `events(name, created_at)`, `results(public_id)`, `reports(token)`.
+- Email в `orders` и `leads` хранится в зашифрованном виде (`email_encrypted`, Fernet, ключ из `.env`),
+  плюс хеш для поиска (`email_hash`).
+- `answers.value` — строка: число для числовых шкал, id варианта для вопроса ВЦИОМ.
+- Индексы: `events(name, created_at)`, `results(public_id)` (unique), `reports(token)` (unique),
+  `orders(email_hash)`, `leads(email_hash)`.
 
 ## 7. API и маршруты
 

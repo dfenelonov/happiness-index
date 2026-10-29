@@ -7,12 +7,13 @@
 
 - [ ] `pyproject.toml` (uv), структура `app/` (`main.py`, `config.py`, `db/`, `routes/`, `scoring/`,
       `services/`, `templates/`, `static/`), `tests/`
-- [ ] Настройки через pydantic-settings из `.env`; загрузка `config/questionnaire.yaml` и `config/app.yaml`
+- [x] Настройки через pydantic-settings из `.env`; загрузка `config/questionnaire.yaml` и `config/app.yaml`
       с валидацией схемы при старте
-- [ ] Проверка плейсхолдеров: при `APP_ENV=production` и наличии `TODO_LICENSED_TEXT`/`TODO_LEGAL` — отказ старта
-- [ ] SQLAlchemy-модели из SPEC §6, Alembic, первая миграция
-- [ ] `docker-compose.yml` (app + postgres), `Dockerfile`, `/healthz`
-- [ ] Обновить раздел «Команды» в `CLAUDE.md`
+- [x] Проверка плейсхолдеров: при `APP_ENV=production` и наличии `TODO_LICENSED_TEXT`/`TODO_LEGAL` — отказ старта
+      (также при `SECRET_KEY`/`ADMIN_PASSWORD` = `change-me` или пустом `EMAIL_ENCRYPTION_KEY`)
+- [x] SQLAlchemy-модели из SPEC §6, Alembic, первая миграция
+- [x] `docker-compose.yml` (app + postgres), `Dockerfile`, `/healthz`
+- [x] Обновить раздел «Команды» в `CLAUDE.md`
 
 **Готово, когда:** `docker compose up` поднимает приложение, `/healthz` отвечает 200, миграции применяются.
 
