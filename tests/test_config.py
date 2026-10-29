@@ -137,6 +137,23 @@ def test_invalid_app_config_rejected(config_dir: Path) -> None:
         load_configs(config_dir)
 
 
+@pytest.mark.parametrize(
+    "mutate",
+    [
+        lambda d: d["vciom_result_texts"].pop("hard_to_say"),
+        lambda d: d["vciom_result_texts"].update(extra="текст"),
+        lambda d: d["vciom_result_texts"].update(rather_no="{unknown}"),
+        lambda d: d["vciom_result_texts"].update(rather_no="{happy"),
+        lambda d: d["landing"].update(headline_with_trend="Без плейсхолдера"),
+    ],
+    ids=["missing_option", "extra_option", "unknown_placeholder", "broken_brace", "no_trend"],
+)
+def test_invalid_app_texts_rejected(config_dir: Path, mutate: Any) -> None:
+    edit_yaml(config_dir / "app.yaml", mutate)
+    with pytest.raises(ConfigError, match=r"app\.yaml"):
+        load_configs(config_dir)
+
+
 def test_broken_yaml_rejected(config_dir: Path) -> None:
     (config_dir / QUESTIONNAIRE_FILE).write_text("blocks: [", encoding="utf-8")
     with pytest.raises(ConfigError):

@@ -7,5 +7,18 @@
     <li>Разбор трёх утечек и шаги на неделю</li>
     <li>План на 30 дней</li>
   </ul>
+  {# Превью: полосы декоративные — реальные черты в бесплатную страницу не попадают даже в HTML. #}
+  <div class="relative mt-5 overflow-hidden rounded-2xl bg-amber-50 p-4 pb-12">
+    <p class="font-semibold text-stone-900">Твой профиль по 5 чертам личности</p>
+    <div class="mt-3 space-y-3 blur-sm select-none" aria-hidden="true">
+      {% for width in [72, 45, 88, 30, 64] %}
+      <div>
+        <div class="h-3 w-24 rounded bg-stone-300"></div>
+        <div class="mt-1 h-2 w-full rounded-full bg-amber-100"><div class="h-full rounded-full bg-amber-400" style="width: {{ width }}%"></div></div>
+      </div>
+      {% endfor %}
+    </div>
+    <p class="absolute inset-x-0 bottom-3 text-center text-sm font-medium text-stone-600">Откроется в полном отчёте</p>
+  </div>
   <button type="button" disabled class="mt-6 flex min-h-[52px] w-full items-center justify-center rounded-2xl bg-stone-200 px-6 text-lg font-semibold text-stone-500">Скоро</button>
 </section>

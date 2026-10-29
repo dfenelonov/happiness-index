@@ -53,12 +53,13 @@ class Settings(BaseSettings):
     smtp_password: str = ""
     mail_from: str = ""
 
-    yandex_metrika_id: str = ""
+    yandex_metrika_id: str = Field("", pattern=r"^\d*$")  # только цифры счётчика
     admin_user: str = "admin"
     admin_password: str = "change-me"
 
     config_dir: Path = PROJECT_ROOT / "config"
     templates_dir: Path = APP_DIR / "templates"
+    cache_dir: Path = PROJECT_ROOT / "var" / "cache"
 
     @property
     def is_production(self) -> bool:
@@ -352,6 +353,7 @@ class CountryIndex(_Strict):
     period: str
     source_name: str
     source_url: str
+    trend: str | None = None
 
     # Индекс ВЦИОМ = доля «да» − доля «нет» (в п.п.), отсюда остальные доли.
     @property
@@ -369,9 +371,27 @@ class CountryIndex(_Strict):
         return self
 
 
+VCIOM_TEXT_PLACEHOLDERS = {"happy": 0, "unhappy": 0, "hard_to_say": 0, "unhappy_one_in": ""}
+
+
+def _check_template(template: str, name: str, **placeholders: object) -> None:
+    try:
+        template.format(**placeholders)
+    except (KeyError, IndexError, ValueError) as e:
+        raise ValueError(f"{name}: неизвестный или битый плейсхолдер ({e})") from None
+
+
 class Landing(_Strict):
-    headline: str
+    headline_with_trend: str
+    headline_neutral: str
     subheadline: str
+
+    @model_validator(mode="after")
+    def _check(self) -> Landing:
+        if "{trend}" not in self.headline_with_trend:
+            raise ValueError("landing.headline_with_trend должен содержать {trend}")
+        _check_template(self.headline_with_trend, "landing.headline_with_trend", trend="")
+        return self
 
 
 class Consent(_Strict):
@@ -412,21 +432,36 @@ class SupportContact(_Strict):
         return self
 
 
+class Analytics(_Strict):
+    metrika_webvisor: bool = False
+
+
 class AppConfig(_Strict):
     site_name: str
     landing: Landing
     consent: Consent
     country_index: CountryIndex
+    vciom_result_texts: dict[str, str] = Field(min_length=1)
     pricing: Pricing
     fake_door: FakeDoor
     percentile: Percentile
     support_contacts: list[SupportContact] = Field(min_length=1)
+    analytics: Analytics = Analytics()
 
     @model_validator(mode="after")
     def _check(self) -> AppConfig:
         if dups := _duplicates(c.id for c in self.support_contacts):
             raise ValueError(f"повторяются id контактов: {dups}")
+        for key, text in self.vciom_result_texts.items():
+            _check_template(text, f"vciom_result_texts.{key}", **VCIOM_TEXT_PLACEHOLDERS)
         return self
+
+    @property
+    def headline(self) -> str:
+        trend = (self.country_index.trend or "").strip()
+        if not trend:
+            return self.landing.headline_neutral
+        return self.landing.headline_with_trend.format(trend=trend)
 
 
 # --- Загрузка и проверки при старте --------------------------------------------------------------
@@ -455,10 +490,19 @@ def _load_model[M: BaseModel](model: type[M], path: Path) -> M:
 
 
 def load_configs(config_dir: Path) -> Configs:
-    return Configs(
+    configs = Configs(
         questionnaire=_load_model(Questionnaire, config_dir / QUESTIONNAIRE_FILE),
         app=_load_model(AppConfig, config_dir / APP_CONFIG_FILE),
     )
+    q = configs.questionnaire
+    vciom_block = q.block(q.scoring.vciom.block)
+    options = q.scales[vciom_block.scale_of(vciom_block.items[0])].options or []  # type: ignore[index]
+    if set(configs.app.vciom_result_texts) != {o.id for o in options}:
+        raise ConfigError(
+            f"{APP_CONFIG_FILE}: vciom_result_texts должен содержать ровно варианты "
+            f"{[o.id for o in options]}"
+        )
+    return configs
 
 
 def _walk_strings(node: Any, path: str) -> Iterator[tuple[str, str]]:

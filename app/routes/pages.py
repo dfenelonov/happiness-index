@@ -2,7 +2,8 @@ from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse
 
 from app.db.session import Db
-from app.services.sessions import ensure_session, set_sid_cookie
+from app.services.events import log_event
+from app.services.sessions import REF_PATTERN, UTM_KEYS, ensure_session, set_sid_cookie
 from app.web import render
 
 router = APIRouter()
@@ -18,7 +19,13 @@ LEGAL_PAGES = {
 
 @router.get("/", response_class=HTMLResponse)
 def landing(request: Request, db: Db):
-    _, sid = ensure_session(db, request, request.app.state.settings)
+    session, sid = ensure_session(db, request, request.app.state.settings)
+    params = request.query_params
+    ref = params.get("ref")
+    utm = {k: params[k] for k in UTM_KEYS if params.get(k)}
+    log_event(
+        db, session, "landing_view", ref=ref if ref and REF_PATTERN.fullmatch(ref) else None, **utm
+    )
     response = render(request, "landing.html")
     set_sid_cookie(response, sid, request.app.state.settings)
     return response

@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session as DbSession
 from app.config import AppConfig, Questionnaire
 from app.db.models import Answer, Result, Session
 from app.scoring import ScoringResult, score
+from app.services.events import log_event
 
 PUBLIC_ID_BYTES = 9  # 12 символов base64url
 
@@ -63,6 +64,7 @@ def complete(db: DbSession, q: Questionnaire, session: Session, carried: dict[st
         if existing is None:  # pragma: no cover — коллизия public_id, практически невозможна
             raise
         return existing
+    log_event(db, session, "test_complete", archetype_id=result.archetype_id)
     return result
 
 
@@ -83,22 +85,36 @@ class VciomLine:
     period: str
 
 
-def vciom_line(q: Questionnaire, app_config: AppConfig, answer_id: str) -> VciomLine:
-    """Сравнение ответа на вопрос ВЦИОМ с долями россиян. Личный индекс 0–100 здесь
+ONE_IN_WORDS = {
+    2: "каждый второй",
+    3: "каждый третий",
+    4: "каждый четвёртый",
+    5: "каждый пятый",
+    6: "каждый шестой",
+    7: "каждый седьмой",
+    8: "каждый восьмой",
+    9: "каждый девятый",
+    10: "каждый десятый",
+}
+
+
+def one_in(share: float) -> str:
+    """Доля словами: 0.22 → «каждый пятый»; вне 1/2…1/10 — процентом."""
+    if share > 0 and (n := int(1 / share + 0.5)) in ONE_IN_WORDS:
+        return ONE_IN_WORDS[n]
+    return f"{_pct(share)}% россиян"
+
+
+def vciom_line(app_config: AppConfig, answer_id: str) -> VciomLine:
+    """Строка про ответ на вопрос ВЦИОМ (тексты — config/app.yaml). Личный индекс 0–100 здесь
     не участвует: индекс ВЦИОМ — другая метрика."""
     country = app_config.country_index
-    block = q.block(q.scoring.vciom.block)
-    scale = q.scales[block.scale_of(block.items[0])]  # type: ignore[index]
-    happy = next(o.happy for o in scale.options or [] if o.id == answer_id)
-    if happy is True:
-        text = f"Ты среди {_pct(country.share_happy)}% россиян, кто считает себя счастливым."
-    elif happy is False:
-        text = (
-            f"Ты среди {_pct(country.share_unhappy)}% россиян, "
-            "кто сейчас не считает себя счастливым."
-        )
-    else:
-        text = f"Как и {_pct(country.share_hard_to_say)}% россиян, тебе сложно ответить однозначно."
+    text = app_config.vciom_result_texts[answer_id].format(
+        happy=_pct(country.share_happy),
+        unhappy=_pct(country.share_unhappy),
+        hard_to_say=_pct(country.share_hard_to_say),
+        unhappy_one_in=one_in(country.share_unhappy),
+    )
     return VciomLine(text, country.source_name, country.source_url, country.period)
 
 

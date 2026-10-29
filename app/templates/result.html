@@ -7,6 +7,11 @@
   <meta property="og:title" content="Мой индекс счастья — {{ result.happiness_index }}. А какой у тебя?">
   <meta property="og:description" content="Тип: {{ archetype_name }}. Пройди тест за 5 минут.">
   <meta property="og:url" content="{{ base_url }}/r/{{ result.public_id }}">
+  <meta property="og:image" content="{{ base_url }}/r/{{ result.public_id }}/og.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:image" content="{{ base_url }}/r/{{ result.public_id }}/og.png">
   <meta name="robots" content="noindex">
 {% endblock %}
 {% block content %}
@@ -51,6 +56,20 @@
     </li>
     {% endfor %}
   </ol>
+</section>
+
+<section class="mt-4 rounded-3xl bg-white p-6 shadow-sm">
+  <h2 class="text-lg font-bold text-stone-900">Поделиться результатом</h2>
+  <div class="mt-4 grid grid-cols-2 gap-2">
+    <a href="{{ share['vk'] }}" target="_blank" rel="noopener" data-event="share_click" data-channel="vk"
+       class="flex min-h-[48px] items-center justify-center rounded-2xl bg-[#0077FF] px-3 font-semibold text-white">ВКонтакте</a>
+    <a href="{{ share['tg'] }}" target="_blank" rel="noopener" data-event="share_click" data-channel="tg"
+       class="flex min-h-[48px] items-center justify-center rounded-2xl bg-[#229ED9] px-3 font-semibold text-white">Telegram</a>
+    <button type="button" data-event="share_click" data-channel="copy" data-copy="{{ share['copy'] }}"
+       class="flex min-h-[48px] items-center justify-center rounded-2xl border border-stone-300 px-3 font-semibold text-stone-800"><span data-label>Скопировать ссылку</span></button>
+    <a href="{{ share['card'] }}" download="indeks-schastya.png" data-event="share_click" data-channel="card"
+       class="flex min-h-[48px] items-center justify-center rounded-2xl border border-stone-300 px-3 font-semibold text-stone-800">Картинка для сторис</a>
+  </div>
 </section>
 
 {% if show_support %}{% include "_support.html" %}{% endif %}

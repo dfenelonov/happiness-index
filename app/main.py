@@ -6,7 +6,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.config import APP_DIR, Settings, check_production_readiness, get_settings, load_configs
 from app.db.session import create_db_engine, make_session_factory
-from app.routes import health, pages, results, test
+from app.routes import events, health, pages, results, test
 from app.services.test_flow import TestFlow
 from app.web import render
 
@@ -29,7 +29,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.session_factory = make_session_factory(app.state.engine)
 
     app.mount("/static", StaticFiles(directory=APP_DIR / "static"), name="static")
-    for module in (health, pages, test, results):
+    for module in (health, pages, test, results, events):
         app.include_router(module.router)
 
     @app.exception_handler(StarletteHTTPException)

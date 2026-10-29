@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session as DbSession
 from app.db.models import Session
 from app.db.session import Db
 from app.scoring import ScoringError
+from app.services.events import log_event, log_event_once
 from app.services.results import complete, result_of, save_answer, stored_answers
 from app.services.sessions import ensure_session, get_session, give_consent, set_sid_cookie
 from app.services.test_flow import AnswerError, TestFlow
@@ -35,6 +36,8 @@ def _render_question(
     status: int = 200,
 ):
     question = _flow(request).question(item_id)
+    if question.index == 0:
+        log_event_once(db, session, "test_start")
     current = (
         carried.get(item_id) if not question.stored else stored_answers(db, session).get(item_id)
     )
@@ -73,7 +76,9 @@ async def consent(request: Request, db: Db):
     if form.get("agree") != "yes":
         response = _render_consent(request, "Чтобы начать, отметь согласие.", 400)
     else:
-        give_consent(db, session, request.app.state.app_config.consent.version)
+        version = request.app.state.app_config.consent.version
+        give_consent(db, session, version)
+        log_event(db, session, "consent_given", version=version)
         response = redirect(request, "/test")
     set_sid_cookie(response, sid, settings)
     return response
@@ -110,6 +115,8 @@ async def answer(request: Request, db: Db):
         save_answer(db, session, item_id, value)
     else:
         carried[item_id] = value
+    answered = flow.question(item_id)
+    log_event(db, session, "question_answered", index=answered.number, block=answered.block.id)
 
     next_id = flow.next_id(item_id)
     if next_id is None:

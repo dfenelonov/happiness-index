@@ -1,17 +1,9 @@
 from pathlib import Path
 
 from alembic import command
-from alembic.config import Config
 from sqlalchemy import create_engine, inspect
 
-from app.config import PROJECT_ROOT
-
-
-def alembic_config(db_url: str) -> Config:
-    cfg = Config(str(PROJECT_ROOT / "alembic.ini"))
-    cfg.set_main_option("sqlalchemy.url", db_url)
-    cfg.attributes["configure_logger"] = False
-    return cfg
+from tests.conftest import alembic_config
 
 
 def test_migrations_upgrade_match_models_and_downgrade(tmp_path: Path) -> None:

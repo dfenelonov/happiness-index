@@ -1,10 +1,14 @@
 import shutil
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
 from pathlib import Path
 from typing import Any
 
 import pytest
 import yaml
+from alembic import command
+from alembic.config import Config
+from fastapi import FastAPI
+from fastapi.testclient import TestClient
 
 from app.config import (
     APP_CONFIG_FILE,
@@ -29,6 +33,7 @@ def make_settings(tmp_path: Path, **overrides: Any) -> Settings:
         "database_url": f"sqlite:///{tmp_path / 'test.sqlite3'}",
         "config_dir": REAL_CONFIG_DIR,
         "templates_dir": APP_DIR / "templates",
+        "cache_dir": tmp_path / "cache",
     }
     values.update(overrides)
     return Settings(_env_file=None, **values)
@@ -69,3 +74,29 @@ def filled_config_dir(config_dir: Path) -> Path:
         dumped = yaml.safe_dump(data, allow_unicode=True, sort_keys=False)
         path.write_text(comments + dumped, encoding="utf-8")
     return config_dir
+
+
+def alembic_config(db_url: str) -> Config:
+    cfg = Config(str(PROJECT_ROOT / "alembic.ini"))
+    cfg.set_main_option("sqlalchemy.url", db_url)
+    cfg.attributes["configure_logger"] = False
+    return cfg
+
+
+def build_app(tmp_path: Path, **overrides: Any) -> FastAPI:
+    from app.main import create_app
+
+    settings = make_settings(tmp_path, **overrides)
+    command.upgrade(alembic_config(settings.database_url), "head")  # схема — из миграций
+    return create_app(settings)
+
+
+@pytest.fixture
+def app(tmp_path: Path) -> FastAPI:
+    return build_app(tmp_path)
+
+
+@pytest.fixture
+def client(app: FastAPI) -> Iterator[TestClient]:
+    with TestClient(app, follow_redirects=False) as c:
+        yield c

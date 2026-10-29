@@ -8,10 +8,10 @@
     <li class="rounded-2xl bg-white p-4">
       <p class="font-semibold text-stone-900">{{ contact.name }}</p>
       {% if contact.phone %}
-      <a href="tel:{{ contact.phone }}" data-contact-id="{{ contact.id }}" class="mt-1 inline-flex min-h-[44px] items-center text-lg font-semibold text-sky-700 underline">{{ contact.phone }}</a>
+      <a href="tel:{{ contact.phone }}" data-event="support_link_click" data-contact-id="{{ contact.id }}" class="mt-1 inline-flex min-h-[44px] items-center text-lg font-semibold text-sky-700 underline">{{ contact.phone }}</a>
       {% endif %}
       {% if contact.url %}
-      <a href="{{ contact.url }}" data-contact-id="{{ contact.id }}" rel="noopener" target="_blank" class="mt-1 inline-flex min-h-[44px] items-center text-sky-700 underline">Перейти на сайт</a>
+      <a href="{{ contact.url }}" data-event="support_link_click" data-contact-id="{{ contact.id }}" rel="noopener" target="_blank" class="mt-1 inline-flex min-h-[44px] items-center text-sky-700 underline">Перейти на сайт</a>
       {% endif %}
       {% if contact.note %}<p class="text-sm text-stone-500">{{ contact.note }}</p>{% endif %}
     </li>

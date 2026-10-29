@@ -1,92 +1,25 @@
-from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
-from alembic import command
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-from httpx import Response
-from sqlalchemy import select
 
 from app.config import load_configs
 from app.db.models import Answer, Result, Session
-from app.main import create_app
-from app.services.results import vciom_line
+from app.services.results import one_in, vciom_line
 from app.services.test_flow import TestFlow
-from tests.conftest import REAL_CONFIG_DIR, edit_yaml, make_settings
-from tests.test_migrations import alembic_config
-
-HTMX = {"HX-Request": "true"}
-Q = load_configs(REAL_CONFIG_DIR).questionnaire
-ITEMS = [(b, i) for b in Q.blocks for i in b.items]
-SCREENING_IDS = {i.id for b, i in ITEMS if not b.store_answers}
-
-
-def build_app(tmp_path: Path, **overrides) -> FastAPI:
-    settings = make_settings(tmp_path, **overrides)
-    command.upgrade(alembic_config(settings.database_url), "head")  # схема — из миграций
-    return create_app(settings)
-
-
-@pytest.fixture
-def app(tmp_path: Path) -> FastAPI:
-    return build_app(tmp_path)
-
-
-@pytest.fixture
-def client(app: FastAPI) -> Iterator[TestClient]:
-    with TestClient(app, follow_redirects=False) as c:
-        yield c
-
-
-def db_rows(app: FastAPI, model):
-    with app.state.session_factory() as db:
-        return list(db.scalars(select(model)))
-
-
-def consent(client: TestClient, query: str = "") -> None:
-    client.get(f"/{query}")
-    assert client.post("/consent", data={"agree": "yes"}).status_code == 303
-
-
-def answers_for(swls: int = 4, screening: tuple[int, int, int, int] = (0, 0, 0, 0)) -> dict:
-    values: dict[str, str] = {}
-    screening_values = iter(screening)
-    for block, item in ITEMS:
-        if block.id == "vciom":
-            values[item.id] = "rather_yes"
-        elif block.id == "swls":
-            values[item.id] = str(swls)
-        elif block.store_answers:
-            values[item.id] = "3"
-        else:
-            values[item.id] = str(next(screening_values))
-    return values
-
-
-def run_test(client: TestClient, values: dict[str, str], headers: dict | None = None) -> Response:
-    """Проходит тест так же, как это делают формы: сохраняемые ответы — по одному,
-    ответы скрининга — в скрытых полях carry_*, затем POST /test/complete."""
-    carry: dict[str, str] = {}
-    for block, item in ITEMS:
-        data = {"item_id": item.id, "value": values[item.id]}
-        data |= {f"carry_{k}": v for k, v in carry.items()}
-        r = client.post("/api/answers", data=data, headers=headers or {})
-        assert r.status_code == 200, (item.id, r.text)
-        if not block.store_answers:
-            carry[item.id] = values[item.id]
-    assert "Считаем результат" in r.text
-    return client.post(
-        "/test/complete", data={f"carry_{k}": v for k, v in carry.items()}, headers=headers or {}
-    )
-
-
-def complete_test(client: TestClient, **kwargs) -> str:
-    consent(client)
-    r = run_test(client, answers_for(**kwargs))
-    assert r.status_code == 303
-    return r.headers["location"]
-
+from tests.conftest import REAL_CONFIG_DIR, build_app, edit_yaml
+from tests.flow import (
+    HTMX,
+    ITEMS,
+    SCREENING_IDS,
+    Q,
+    answers_for,
+    complete_test,
+    consent,
+    db_rows,
+    run_test,
+)
 
 # --- Лендинг и сессия ----------------------------------------------------------------------------
 
@@ -94,7 +27,7 @@ def complete_test(client: TestClient, **kwargs) -> str:
 def test_landing_renders_with_og_and_sets_sid(client: TestClient, app: FastAPI) -> None:
     r = client.get("/?utm_source=vk&utm_medium=cpc&utm_campaign=launch&ref=abcDEF123_-")
     assert r.status_code == 200
-    assert app.state.app_config.landing.headline in r.text
+    assert "Индекс счастья в России упал до минимума за 15 лет. А какой у тебя?" in r.text
     assert 'property="og:title"' in r.text
     assert "Узнать свой индекс" in r.text
     cookie = r.headers["set-cookie"]
@@ -265,7 +198,7 @@ def test_owner_view(client: TestClient) -> None:
     r = client.get(complete_test(client))
     assert "Твой индекс счастья" in r.text
     assert "Три утечки счастья" in r.text and "Сон и энергия" in r.text
-    assert "Ты среди 74% россиян" in r.text
+    assert "Ты скорее счастлив — и ты среди 74% россиян" in r.text
     assert 'id="paywall"' in r.text and 'id="support"' not in r.text
     assert "Выше, чем у" not in r.text  # тестов меньше порога
 
@@ -319,14 +252,47 @@ def test_unknown_result_is_html_404(client: TestClient) -> None:
     assert r.status_code == 404 and "Страница не найдена" in r.text
 
 
+VCIOM_TEXTS = {
+    "definitely_yes": "Ты среди 74% россиян, кто считает себя счастливым.",
+    "rather_yes": "Ты скорее счастлив — и ты среди 74% россиян, кто считает себя счастливым.",
+    "rather_no": (
+        "Сейчас ты не чувствуешь себя счастливым — так отвечает примерно каждый пятый. "
+        "Ниже — что больше всего отнимает у тебя силы."
+    ),
+    "hard_to_say": (
+        "Тебе сложно ответить однозначно — так отвечают около 4% россиян. "
+        "Ниже — что сейчас сильнее всего влияет на твоё состояние."
+    ),
+}
+VCIOM_TEXTS["definitely_no"] = VCIOM_TEXTS["rather_no"]
+
+
+@pytest.mark.parametrize(("answer", "text"), sorted(VCIOM_TEXTS.items()))
+def test_vciom_line(answer: str, text: str) -> None:
+    line = vciom_line(load_configs(REAL_CONFIG_DIR).app, answer)
+    assert line.text == text
+    assert "несчастлив" not in line.text
+
+
 @pytest.mark.parametrize(
-    ("answer", "text"),
+    ("share", "words"),
     [
-        ("definitely_yes", "Ты среди 74% россиян, кто считает себя счастливым."),
-        ("rather_no", "Ты среди 22% россиян, кто сейчас не считает себя счастливым."),
-        ("hard_to_say", "Как и 4% россиян, тебе сложно ответить однозначно."),
+        (0.22, "каждый пятый"),
+        (0.5, "каждый второй"),
+        (0.26, "каждый четвёртый"),
+        (0.1, "каждый десятый"),
+        (0.04, "4% россиян"),
+        (0.0, "0% россиян"),
+        (0.8, "80% россиян"),
     ],
 )
-def test_vciom_line(answer: str, text: str) -> None:
-    app_config = load_configs(REAL_CONFIG_DIR).app
-    assert vciom_line(Q, app_config, answer).text == text
+def test_one_in(share: float, words: str) -> None:
+    assert one_in(share) == words
+
+
+@pytest.mark.parametrize("trend", ["", "  ", None])
+def test_neutral_headline_without_trend(tmp_path: Path, config_dir: Path, trend) -> None:
+    edit_yaml(config_dir / "app.yaml", lambda d: d["country_index"].update(trend=trend))
+    with TestClient(build_app(tmp_path, config_dir=config_dir)) as c:
+        r = c.get("/")
+    assert "Как у тебя с индексом счастья?" in r.text and "15 лет" not in r.text

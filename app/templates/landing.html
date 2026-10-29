@@ -4,7 +4,7 @@
 {% block og %}
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="{{ app_config.site_name }}">
-  <meta property="og:title" content="{{ app_config.landing.headline }}">
+  <meta property="og:title" content="{{ app_config.headline }}">
   <meta property="og:description" content="{{ app_config.landing.subheadline }}">
   <meta property="og:url" content="{{ base_url }}/">
   <meta name="twitter:card" content="summary_large_image">
@@ -12,7 +12,7 @@
 {% block content %}
 <section class="pt-6">
   <p class="text-sm font-semibold uppercase tracking-wide text-amber-700">{{ app_config.site_name }}</p>
-  <h1 class="mt-3 text-3xl font-bold leading-tight text-stone-900">{{ app_config.landing.headline }}</h1>
+  <h1 class="mt-3 text-3xl font-bold leading-tight text-stone-900">{{ app_config.headline }}</h1>
   <p class="mt-4 text-lg text-stone-600">{{ app_config.landing.subheadline }}</p>
   <a href="/test" class="mt-8 flex min-h-[52px] w-full items-center justify-center rounded-2xl bg-amber-500 px-6 text-lg font-semibold text-white shadow-sm active:bg-amber-600">Узнать свой индекс</a>
   <p class="mt-4 text-sm text-stone-500">
