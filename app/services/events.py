@@ -62,6 +62,8 @@ def validate_client_event(name: object, props: object, contact_ids: set[str]) ->
         raise ValueError("props должен быть объектом")
     if name == "share_click" and set(props) == {"channel"} and props["channel"] in SHARE_CHANNELS:
         return {"channel": props["channel"]}
+    if name == "paywall_view" and props == {}:
+        return {}  # цену подставляет сервер из сессии — клиенту не доверяем
     if (
         name == "support_link_click"
         and set(props) == {"contact_id"}

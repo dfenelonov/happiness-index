@@ -1,7 +1,10 @@
+from urllib.parse import urlparse
+
 from fastapi import APIRouter, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import FileResponse, HTMLResponse
 
 from app.db.session import Db
+from app.services.cards import cached_png, landing_og_path, render_landing_og
 from app.services.events import log_event
 from app.services.sessions import REF_PATTERN, UTM_KEYS, ensure_session, set_sid_cookie
 from app.web import render
@@ -29,6 +32,24 @@ def landing(request: Request, db: Db):
     response = render(request, "landing.html")
     set_sid_cookie(response, sid, request.app.state.settings)
     return response
+
+
+@router.get("/og.png")
+def landing_og(request: Request) -> FileResponse:
+    app_config = request.app.state.app_config
+    settings = request.app.state.settings
+    texts = (
+        app_config.headline,
+        app_config.landing.subheadline,
+        app_config.site_name,
+        urlparse(settings.app_base_url).netloc,
+    )
+    path = cached_png(
+        landing_og_path(settings.cache_dir, *texts), lambda: render_landing_og(*texts)
+    )
+    return FileResponse(
+        path, media_type="image/png", headers={"Cache-Control": "public, max-age=3600"}
+    )
 
 
 def _legal_page(slug: str, title: str):

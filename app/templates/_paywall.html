@@ -1,5 +1,5 @@
-{# Заглушка пейволла: цена A/B, email, оферта и оплата — этап 4. #}
-<section id="paywall" class="mt-4 rounded-3xl bg-white p-6 shadow-sm">
+{# Пейволл (SPEC §3.5). Рендерится только владельцу без флага скрининга. #}
+<section id="paywall" data-view-event="paywall_view" class="mt-4 rounded-3xl bg-white p-6 shadow-sm">
   <h2 class="text-lg font-bold text-stone-900">Полный отчёт</h2>
   <ul class="mt-3 list-disc space-y-1 pl-5 text-stone-700">
     <li>Главное о тебе и твоём индексе</li>
@@ -20,5 +20,23 @@
     </div>
     <p class="absolute inset-x-0 bottom-3 text-center text-sm font-medium text-stone-600">Откроется в полном отчёте</p>
   </div>
-  <button type="button" disabled class="mt-6 flex min-h-[52px] w-full items-center justify-center rounded-2xl bg-stone-200 px-6 text-lg font-semibold text-stone-500">Скоро</button>
+
+  {% if paid %}
+  <a href="/checkout/return" class="mt-6 flex min-h-[52px] w-full items-center justify-center rounded-2xl bg-amber-500 px-6 text-lg font-semibold text-white">Отчёт оплачен — открыть</a>
+  {% else %}
+  <form method="post" action="/checkout" hx-post="/checkout" hx-target="#paywall" hx-swap="outerHTML" class="mt-6">
+    <p class="text-3xl font-bold text-stone-900">{{ price }} ₽</p>
+    <label class="mt-4 block text-sm font-medium text-stone-700" for="paywall-email">Email — пришлём ссылку на отчёт и чек</label>
+    <input id="paywall-email" type="email" name="email" required autocomplete="email" inputmode="email"
+           value="{{ paywall_email or '' }}" placeholder="you@example.ru"
+           class="mt-1 block min-h-[48px] w-full rounded-xl border border-stone-300 px-4 text-base">
+    <label class="mt-4 flex items-start gap-3">
+      <input type="checkbox" name="agree_offer" value="yes" class="mt-1 h-5 w-5 shrink-0 accent-amber-500">
+      <span class="text-sm text-stone-700">Принимаю условия <a class="underline" href="/offer" target="_blank">оферты</a></span>
+    </label>
+    {% if paywall_error %}<p class="mt-3 text-sm font-medium text-rose-700" role="alert">{{ paywall_error }}</p>{% endif %}
+    <button type="submit" class="mt-5 flex min-h-[52px] w-full items-center justify-center rounded-2xl bg-amber-500 px-6 text-lg font-semibold text-white shadow-sm active:bg-amber-600">Получить полный отчёт</button>
+    <p class="mt-3 text-center text-sm text-stone-500">Не понравится — вернём деньги в течение {{ refund_days }} дней</p>
+  </form>
+  {% endif %}
 </section>

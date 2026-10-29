@@ -177,7 +177,8 @@ answers       session_id, item_id, value, answered_at          -- кроме б�
 results       session_id, public_id, swls_raw, happiness_index, trait_E/A/C/N/O (1–5),
               archetype_id, domain_scores (json, домен → балл 1–5), leaks (json, 3 id), vciom_answer,
               screening_flag (bool), completed_at
-orders        id, session_id, amount_rub, status, yookassa_payment_id (unique), email_encrypted,
+orders        id, session_id, amount_rub, status (pending|succeeded|canceled|refunded),
+              yookassa_payment_id (unique), email_encrypted,
               email_hash, created_at, paid_at, refunded_at
 reports       order_id (PK — один отчёт на заказ), token, status (pending|ready|fallback|failed),
               content_json, provider, model, tokens_in, tokens_out, created_at

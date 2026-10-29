@@ -24,6 +24,8 @@ SAFE_SECRETS = {
     "secret_key": "s3cret-for-tests",
     "admin_password": "admin-pass-for-tests",
     "email_encryption_key": "dGVzdC1rZXktdGVzdC1rZXktdGVzdC1rZXktdGVzdC0=",
+    "yookassa_shop_id": "123456",
+    "yookassa_secret_key": "test_secret_for_tests",
 }
 
 

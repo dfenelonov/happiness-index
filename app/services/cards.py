@@ -4,9 +4,11 @@
 не принимает ни утечек, ни данных скрининга.
 """
 
+import hashlib
 import io
 import os
 import tempfile
+from collections.abc import Callable
 from functools import cache
 from pathlib import Path
 from typing import Literal
@@ -95,6 +97,56 @@ def render_card(
     return buf.getvalue()
 
 
+def _wrap(draw: ImageDraw.ImageDraw, text: str, font, max_width: int) -> list[str]:
+    lines: list[str] = []
+    for word in text.split():
+        candidate = f"{lines[-1]} {word}" if lines else word
+        if lines and draw.textlength(candidate, font=font) <= max_width:
+            lines[-1] = candidate
+        else:
+            lines.append(word)
+    return lines
+
+
+def render_landing_og(headline: str, subheadline: str, site_name: str, domain: str) -> bytes:
+    """OG-картинка лендинга 1200×630: заголовок из конфига, без личных данных."""
+    img = _gradient(*SIZES["og"])
+    draw = ImageDraw.Draw(img)
+    _text(draw, (80, 100), site_name.upper(), _font(34, 700), ACCENT, "lm")
+    size = 68
+    while True:
+        font = _font(size, 800)
+        lines = _wrap(draw, headline, font, 1040)
+        if len(lines) <= 4 or size <= 40:
+            break
+        size -= 4
+    y = 170
+    for line in lines:
+        _text(draw, (80, y), line, font, INK, "lt")
+        y += int(size * 1.2)
+    _text(draw, (80, 540), subheadline, _font(36, 500), MUTED, "lm")
+    _text(draw, (1120, 540), domain, _font(30, 500), MUTED, "rm")
+    buf = io.BytesIO()
+    img.save(buf, format="PNG", optimize=True)
+    return buf.getvalue()
+
+
+def cached_png(path: Path, render: Callable[[], bytes]) -> Path:
+    """Файл из кеша или сгенерированный при первом запросе (атомарная запись)."""
+    if not path.exists():
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with tempfile.NamedTemporaryFile(dir=path.parent, delete=False) as tmp:
+            tmp.write(render())
+        os.replace(tmp.name, path)  # параллельный запрос не увидит полфайла
+    return path
+
+
+def landing_og_path(cache_dir: Path, *texts: str) -> Path:
+    """Имя зависит от текстов: сменился заголовок в конфиге — картинка перегенерируется."""
+    digest = hashlib.sha256("\x00".join(texts).encode()).hexdigest()[:16]
+    return cache_dir / "cards" / f"landing-{digest}-v{CARD_VERSION}.png"
+
+
 def cached_card(
     cache_dir: Path,
     public_id: str,
@@ -106,10 +158,6 @@ def cached_card(
 ) -> Path:
     """Путь к PNG в кеше; генерирует при первом запросе. Результат неизменен — кеш вечный."""
     path = cache_dir / "cards" / f"{public_id}-{kind}-v{CARD_VERSION}.png"
-    if not path.exists():
-        path.parent.mkdir(parents=True, exist_ok=True)
-        data = render_card(kind, happiness_index, archetype_name, site_name, domain)
-        with tempfile.NamedTemporaryFile(dir=path.parent, delete=False) as tmp:
-            tmp.write(data)
-        os.replace(tmp.name, path)  # атомарно: параллельный запрос не увидит полфайла
-    return path
+    return cached_png(
+        path, lambda: render_card(kind, happiness_index, archetype_name, site_name, domain)
+    )

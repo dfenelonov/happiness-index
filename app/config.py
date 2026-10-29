@@ -41,6 +41,7 @@ class Settings(BaseSettings):
 
     yookassa_shop_id: str = ""
     yookassa_secret_key: str = ""
+    yookassa_allow_live: bool = False  # боевой магазин — только по явному решению владельца
 
     llm_provider: Literal["yandexgpt", "gigachat"] = "yandexgpt"
     yandexgpt_api_key: str = ""
@@ -432,8 +433,13 @@ class SupportContact(_Strict):
         return self
 
 
-class Analytics(_Strict):
-    metrika_webvisor: bool = False
+class Receipt(_Strict):
+    vat_code: int = Field(ge=1, le=12)
+
+
+class Payments(_Strict):
+    description: str = Field(min_length=1, max_length=128)
+    receipt: Receipt
 
 
 class AppConfig(_Strict):
@@ -443,10 +449,10 @@ class AppConfig(_Strict):
     country_index: CountryIndex
     vciom_result_texts: dict[str, str] = Field(min_length=1)
     pricing: Pricing
+    payments: Payments
     fake_door: FakeDoor
     percentile: Percentile
     support_contacts: list[SupportContact] = Field(min_length=1)
-    analytics: Analytics = Analytics()
 
     @model_validator(mode="after")
     def _check(self) -> AppConfig:
@@ -535,12 +541,31 @@ def find_insecure_secrets(settings: Settings) -> list[str]:
         "SECRET_KEY": settings.secret_key,
         "ADMIN_PASSWORD": settings.admin_password,
         "EMAIL_ENCRYPTION_KEY": settings.email_encryption_key,
+        "YOOKASSA_SHOP_ID": settings.yookassa_shop_id,
+        "YOOKASSA_SECRET_KEY": settings.yookassa_secret_key,
     }
     return [
         f"{name}: пустой или значение по умолчанию"
         for name, value in required.items()
         if value.strip() in INSECURE_SECRET_VALUES
     ]
+
+
+def check_settings(settings: Settings) -> None:
+    """Проверки для любого окружения: боевой магазин ЮKassa и битый ключ шифрования."""
+    key = settings.yookassa_secret_key.strip()
+    if key and not key.startswith("test_") and not settings.yookassa_allow_live:
+        raise ConfigError(
+            "YOOKASSA_SECRET_KEY не тестовый (нет префикса test_). Боевой магазин включается "
+            "только явно: YOOKASSA_ALLOW_LIVE=true по решению владельца."
+        )
+    if settings.email_encryption_key:
+        from cryptography.fernet import Fernet
+
+        try:
+            Fernet(settings.email_encryption_key.encode())
+        except ValueError:
+            raise ConfigError("EMAIL_ENCRYPTION_KEY: не валидный ключ Fernet") from None
 
 
 def check_production_readiness(settings: Settings) -> None:

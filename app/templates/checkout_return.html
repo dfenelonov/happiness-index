@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}Оплата — {{ app_config.site_name }}{% endblock %}
+{% block og %}{% if order.status == "pending" %}<meta http-equiv="refresh" content="3">{% endif %}<meta name="robots" content="noindex">{% endblock %}
+{% block content %}
+<section class="rounded-3xl bg-white p-6 text-center shadow-sm">
+  {% if order.status == "succeeded" %}
+    <h1 class="text-2xl font-bold text-stone-900">Оплата прошла</h1>
+    <p class="mt-3 text-stone-600">Готовим твой отчёт. Ссылку пришлём на почту — и она появится здесь.</p>
+  {% elif order.status == "pending" %}
+    <h1 class="text-2xl font-bold text-stone-900">Проверяем оплату…</h1>
+    <p class="mt-3 text-stone-600">Обычно это занимает несколько секунд. Страница обновится сама.</p>
+  {% elif order.status == "refunded" %}
+    <h1 class="text-2xl font-bold text-stone-900">Деньги возвращены</h1>
+    <p class="mt-3 text-stone-600">Возврат оформлен. Деньги придут на карту в срок, который устанавливает банк.</p>
+  {% else %}
+    <h1 class="text-2xl font-bold text-stone-900">Оплата не прошла</h1>
+    <p class="mt-3 text-stone-600">Деньги не списаны. Можно попробовать ещё раз.</p>
+  {% endif %}
+  <a href="{{ result_url }}" class="mt-6 inline-block underline">Вернуться к результату</a>
+</section>
+{% endblock %}

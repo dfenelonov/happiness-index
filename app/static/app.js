@@ -53,6 +53,22 @@
     if (choice) chooseCookies(choice.dataset.cookieChoice);
   });
 
+  // События «блок в зоне видимости» (paywall_view) — один раз за показ страницы.
+  if ("IntersectionObserver" in window) {
+    var observer = new IntersectionObserver(function (entries) {
+      entries.forEach(function (entry) {
+        if (!entry.isIntersecting) return;
+        sendEvent(entry.target.dataset.viewEvent, {});
+        observer.unobserve(entry.target);
+      });
+    }, { threshold: 0.5 });
+    var observeViews = function (root) {
+      root.querySelectorAll("[data-view-event]").forEach(function (el) { observer.observe(el); });
+    };
+    observeViews(document);
+    document.body.addEventListener("htmx:afterSwap", function (e) { observeViews(e.target); });
+  }
+
   // --- Яндекс Метрика: только после согласия в баннере ---
   var metrikaId = document.body.dataset.metrikaId;
 
@@ -73,7 +89,7 @@
       clickmap: true,
       trackLinks: true,
       accurateTrackBounce: true,
-      webvisor: document.body.dataset.metrikaWebvisor === "true",
+      webvisor: false, // выключен на время MVP: записал бы ответы теста и блок поддержки
     });
   }
 

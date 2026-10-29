@@ -36,6 +36,11 @@ pricing:
   ab_variants_rub: [490, 690, 990]
   refund_days: 14
 
+payments:
+  description: "Персональный отчёт «Индекс счастья»"   # в платеже и в чеке 54-ФЗ
+  receipt:
+    vat_code: 1   # 1 = без НДС. TODO: подтвердить с бухгалтером под налоговый режим (docs/LEGAL.md)
+
 fake_door:
   name: "Трекер счастья"
   price_rub_month: 390
@@ -48,8 +53,3 @@ support_contacts:
   - {id: emergency, name: "Экстренные службы", phone: "112", note: "если есть угроза жизни"}
   - {id: helpline, name: "TODO_LEGAL: телефон доверия для взрослых", phone: "TODO_LEGAL"}
   - {id: psychologist, name: "TODO_LEGAL: сервис записи к психологу", url: "TODO_LEGAL"}
-
-analytics:
-  # Вебвизор записывает клики и экран, включая ответы теста и блок поддержки.
-  # Не включать, пока не решено, как исключить скрининг (docs/LEGAL.md).
-  metrika_webvisor: false

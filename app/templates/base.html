@@ -7,9 +7,11 @@
   <meta name="description" content="{% block description %}{{ app_config.landing.subheadline }}{% endblock %}">
   {% block og %}{% endblock %}
   <script src="https://cdn.tailwindcss.com/3.4.16"></script>
+  {# HTMX 2 по умолчанию не вставляет ответы 4xx/5xx — а ошибки форм (422) и «попробуй позже» (503) нужно показать. #}
+  <meta name="htmx-config" content='{"responseHandling":[{"code":"204","swap":false},{"code":"[23]..","swap":true},{"code":"422","swap":true},{"code":"503","swap":true},{"code":"[45]..","swap":false,"error":true}]}'>
   <script src="https://unpkg.com/htmx.org@2.0.4/dist/htmx.min.js" defer></script>
 </head>
-<body class="min-h-screen bg-amber-50 text-stone-800 antialiased"{% if metrika_id %} data-metrika-id="{{ metrika_id }}" data-metrika-webvisor="{{ 'true' if app_config.analytics.metrika_webvisor else 'false' }}"{% endif %}>
+<body class="min-h-screen bg-amber-50 text-stone-800 antialiased"{% if metrika_id %} data-metrika-id="{{ metrika_id }}"{% endif %}>
   <main class="mx-auto max-w-md px-4 pb-10 pt-6">
     {% block content %}{% endblock %}
   </main>

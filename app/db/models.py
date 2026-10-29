@@ -23,6 +23,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 from app.db.base import Base, JsonType
 
 REPORT_STATUSES = ("pending", "ready", "fallback", "failed")
+ORDER_STATUSES = ("pending", "succeeded", "canceled", "refunded")
 
 
 def _created_at() -> Mapped[datetime]:
@@ -90,9 +91,12 @@ class Result(Base):
 
 class Order(Base):
     __tablename__ = "orders"
+    __table_args__ = (CheckConstraint(f"status IN {ORDER_STATUSES}", name="status"),)
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
-    session_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("sessions.id"), nullable=False)
+    session_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("sessions.id"), index=True, nullable=False
+    )
     amount_rub: Mapped[int] = mapped_column(Integer, nullable=False)
     status: Mapped[str] = mapped_column(String(32), nullable=False)
     yookassa_payment_id: Mapped[str | None] = mapped_column(String(64), unique=True)

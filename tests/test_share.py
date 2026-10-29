@@ -143,7 +143,7 @@ def test_banner_shown_and_metrika_not_loaded_before_consent(metrika_client: Test
     html = metrika_client.get("/").text
     assert 'id="cookie-banner"' in html and 'data-metrika-id="12345678"' in html
     assert "mc.yandex.ru" not in html  # загрузчик — только в app.js, после «Принять»
-    assert 'data-metrika-webvisor="false"' in html
+    assert "webvisor" not in html
 
 
 @pytest.mark.parametrize("choice", ["yes", "no"])
@@ -155,6 +155,7 @@ def test_banner_hidden_after_choice(metrika_client: TestClient, choice: str) -> 
 def test_app_js_loads_metrika_only_on_consent(client: TestClient) -> None:
     js = client.get("/static/app.js").text
     assert js.count("mc.yandex.ru") == 1
+    assert "webvisor: false," in js and js.count("webvisor") == 1
     assert 'if (cookieChoice() === "yes") loadMetrika();' in js
     assert 'if (value === "yes") loadMetrika();' in js
 
