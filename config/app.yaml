@@ -1,0 +1,29 @@
+# Контент и настройки, которые меняет владелец без правки кода
+
+site_name: "Индекс счастья"
+
+country_index:
+  # Индекс ВЦИОМ = доля «счастливых» минус доля «несчастливых», НЕ средний балл.
+  # Не сравнивать с личным индексом 0–100.
+  value: 52
+  share_happy: 0.74
+  period: "апрель 2026"
+  source_name: "ВЦИОМ"
+  source_url: "https://wciom.ru/ratings/indeks-schastja"
+
+pricing:
+  ab_variants_rub: [490, 690, 990]
+  refund_days: 14
+
+fake_door:
+  name: "Трекер счастья"
+  price_rub_month: 390
+
+percentile:
+  min_completed_tests: 500   # до этого порога строка «выше, чем у N%» не показывается
+
+support_contacts:
+  # TODO_LEGAL: владелец проверяет актуальные номера и названия служб перед запуском
+  - {id: emergency, name: "Экстренные службы", phone: "112", note: "если есть угроза жизни"}
+  - {id: helpline, name: "TODO_LEGAL: телефон доверия для взрослых", phone: "TODO_LEGAL"}
+  - {id: psychologist, name: "TODO_LEGAL: сервис записи к психологу", url: "TODO_LEGAL"}

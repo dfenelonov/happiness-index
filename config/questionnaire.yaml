@@ -1,0 +1,147 @@
+# Единственный источник правды по тесту. Код подсчёта читает правила отсюда.
+# TODO_LICENSED_TEXT — тексты стандартизированных шкал вставляет владелец после проверки лицензий.
+# Не придумывать и не переводить их самостоятельно.
+
+version: 1
+
+scales:
+  agree5:   # для BFI-10 и утечек
+    min: 1
+    max: 5
+    labels: ["Совсем не согласен", "Скорее не согласен", "Ни то ни другое", "Скорее согласен", "Полностью согласен"]
+  agree7:   # для SWLS
+    min: 1
+    max: 7
+    labels: ["Совершенно не согласен", "Не согласен", "Скорее не согласен", "Ни то ни другое",
+             "Скорее согласен", "Согласен", "Полностью согласен"]
+  freq4:    # для скрининга: за последние 2 недели
+    min: 0
+    max: 3
+    labels: ["Ни разу", "Несколько дней", "Больше половины дней", "Почти каждый день"]
+  vciom5:
+    options:
+      - {id: definitely_yes, label: "Определённо да", happy: true}
+      - {id: rather_yes, label: "Скорее да", happy: true}
+      - {id: rather_no, label: "Скорее нет", happy: false}
+      - {id: definitely_no, label: "Определённо нет", happy: false}
+      - {id: hard_to_say, label: "Затрудняюсь ответить", happy: null}
+
+# Порядок блоков в тесте = порядок в этом списке (30 вопросов)
+blocks:
+  - id: vciom
+    title: "Для начала"
+    items:
+      - id: vciom_1
+        scale: vciom5
+        text: "В жизни бывает всякое: и хорошее, и плохое. Но если говорить в целом, ты счастлив или нет?"
+
+  - id: swls
+    title: "Твоя жизнь в целом"
+    source: "Satisfaction With Life Scale (Diener et al., 1985) — русская адаптация, проверить лицензию"
+    scale: agree7
+    items:
+      - {id: swls_1, text: TODO_LICENSED_TEXT}
+      - {id: swls_2, text: TODO_LICENSED_TEXT}
+      - {id: swls_3, text: TODO_LICENSED_TEXT}
+      - {id: swls_4, text: TODO_LICENSED_TEXT}
+      - {id: swls_5, text: TODO_LICENSED_TEXT}
+
+  - id: leaks
+    title: "Из чего складывается твой день"
+    source: "Собственные утверждения проекта"
+    scale: agree5
+    items:
+      - {id: leak_sleep_1, domain: sleep, text: "Чаще всего я просыпаюсь отдохнувшим"}
+      - {id: leak_sleep_2, domain: sleep, text: "Мне хватает энергии на то, что для меня важно"}
+      - {id: leak_rel_1, domain: relationships, text: "Мне есть с кем поделиться тем, что меня волнует"}
+      - {id: leak_rel_2, domain: relationships, text: "Я чувствую близость с важными для меня людьми"}
+      - {id: leak_work_1, domain: work, text: "Моя работа или учёба чаще даёт силы, чем отнимает"}
+      - {id: leak_work_2, domain: work, text: "Я понимаю, зачем делаю то, что делаю на работе или учёбе"}
+      - {id: leak_money_1, domain: money, text: "Мысли о деньгах редко мешают мне жить спокойно"}
+      - {id: leak_money_2, domain: money, text: "Я чувствую, что контролирую свои финансы"}
+      - {id: leak_meaning_1, domain: meaning, text: "У меня есть цели, которые меня по-настоящему вдохновляют"}
+      - {id: leak_meaning_2, domain: meaning, text: "Я чувствую, что моя жизнь движется в нужную сторону"}
+
+  - id: bfi10
+    title: "Какой ты"
+    source: "BFI-10 (Rammstedt & John, 2007) — русская адаптация, проверить лицензию"
+    scale: agree5
+    stem: "Я вижу себя человеком, который…"
+    items:
+      - {id: bfi_1, trait: E, reverse: true, text: TODO_LICENSED_TEXT}
+      - {id: bfi_2, trait: A, reverse: false, text: TODO_LICENSED_TEXT}
+      - {id: bfi_3, trait: C, reverse: true, text: TODO_LICENSED_TEXT}
+      - {id: bfi_4, trait: N, reverse: true, text: TODO_LICENSED_TEXT}
+      - {id: bfi_5, trait: O, reverse: true, text: TODO_LICENSED_TEXT}
+      - {id: bfi_6, trait: E, reverse: false, text: TODO_LICENSED_TEXT}
+      - {id: bfi_7, trait: A, reverse: true, text: TODO_LICENSED_TEXT}
+      - {id: bfi_8, trait: C, reverse: false, text: TODO_LICENSED_TEXT}
+      - {id: bfi_9, trait: N, reverse: false, text: TODO_LICENSED_TEXT}
+      - {id: bfi_10, trait: O, reverse: false, text: TODO_LICENSED_TEXT}
+
+  - id: screening
+    title: "Последние две недели"
+    source: "PHQ-2 и GAD-2 — русская адаптация, проверить условия использования"
+    scale: freq4
+    store_answers: false   # сырые ответы НЕ сохраняются в БД, только итоговый флаг
+    stem: "Как часто за последние 2 недели тебя беспокоило следующее?"
+    items:
+      - {id: phq_1, group: phq2, text: TODO_LICENSED_TEXT}
+      - {id: phq_2, group: phq2, text: TODO_LICENSED_TEXT}
+      - {id: gad_1, group: gad2, text: TODO_LICENSED_TEXT}
+      - {id: gad_2, group: gad2, text: TODO_LICENSED_TEXT}
+
+scoring:
+  happiness_index:
+    block: swls
+    # индекс = round((sum - 5) / 30 * 100)
+    raw_min: 5
+    raw_max: 35
+
+  traits:
+    block: bfi10
+    reverse_formula: "6 - x"
+    aggregate: mean          # среднее пары, 1–5
+    display_0_100: "(m - 1) / 4 * 100"
+
+  domains:
+    block: leaks
+    aggregate: mean
+    leaks_count: 3
+    tie_break_order: [sleep, relationships, work, money, meaning]
+
+  screening:
+    block: screening
+    flag_if_any:
+      phq2: {sum_gte: 3}
+      gad2: {sum_gte: 3}
+
+  archetype:
+    traits: [E, N, O]
+    threshold: 3.0           # «высокий» = среднее > threshold; после 1000 тестов заменить медианами
+    table:
+      - {E: high, N: low,  O: high, id: pathfinder,      name: "Первооткрыватель"}
+      - {E: high, N: low,  O: low,  id: organizer,       name: "Организатор"}
+      - {E: high, N: high, O: high, id: inspirer,        name: "Вдохновитель"}
+      - {E: high, N: high, O: low,  id: heart_of_party,  name: "Душа компании"}
+      - {E: low,  N: low,  O: high, id: quiet_explorer,  name: "Тихий исследователь"}
+      - {E: low,  N: low,  O: low,  id: steady_anchor,   name: "Надёжный якорь"}
+      - {E: low,  N: high, O: high, id: sensitive_dreamer, name: "Чуткий мечтатель"}
+      - {E: low,  N: high, O: low,  id: careful_keeper,  name: "Бережный хранитель"}
+
+texts:
+  domains:
+    sleep: {name: "Сон и энергия", leak: "Тебе не хватает сил — а без них трудно радоваться даже хорошему."}
+    relationships: {name: "Близкие люди", leak: "Тебе не хватает близости и поддержки — одна из главных опор счастья."}
+    work: {name: "Работа и учёба", leak: "Работа сейчас больше забирает, чем даёт."}
+    money: {name: "Деньги", leak: "Финансовая тревога отнимает спокойствие."}
+    meaning: {name: "Смысл и цели", leak: "Не хватает ощущения, что жизнь движется туда, куда хочется."}
+  archetypes:
+    pathfinder: "Ты заряжаешься от людей и новых идей и легко переносишь неопределённость. Тебе важно движение."
+    organizer: "Ты общителен, спокоен и практичен. Люди рядом с тобой чувствуют, что всё под контролем."
+    inspirer: "Ты горишь идеями и людьми и глубоко всё проживаешь — и радость, и тревогу."
+    heart_of_party: "Ты тянешься к людям и живо на всё откликаешься. Тебе важно, чтобы рядом были свои."
+    quiet_explorer: "Ты черпаешь силы в тишине и любопытстве. Спокоен, вдумчив, любишь разбираться в сути."
+    steady_anchor: "Ты спокоен, сдержан и последователен. На тебя можно опереться."
+    sensitive_dreamer: "Ты тонко чувствуешь и много размышляешь. Богатый внутренний мир — твоя сила и твоя нагрузка."
+    careful_keeper: "Ты бережно относишься к людям и привычному укладу и остро чувствуешь перемены."
