@@ -76,6 +76,32 @@ def _labels_mismatch(d: dict[str, Any]) -> None:
     d["scales"]["agree5"]["labels"].pop()
 
 
+def _wrong_reverse_formula(d: dict[str, Any]) -> None:
+    d["scoring"]["traits"]["reverse_formula"] = "5 - x"
+
+
+def _wrong_display_formula(d: dict[str, Any]) -> None:
+    d["scoring"]["traits"]["display_0_100"] = "m * 20"
+
+
+def _missing_vciom_rule(d: dict[str, Any]) -> None:
+    del d["scoring"]["vciom"]
+
+
+def _vciom_rule_on_numeric_block(d: dict[str, Any]) -> None:
+    d["scoring"]["vciom"]["block"] = "swls"
+
+
+def _bfi_mixed_scales(d: dict[str, Any]) -> None:
+    _block(d, "bfi10")["items"][0]["scale"] = "agree7"
+
+
+def _not_big_five(d: dict[str, Any]) -> None:
+    for item in _block(d, "bfi10")["items"]:
+        if item["trait"] == "A":
+            item["trait"] = "X"
+
+
 @pytest.mark.parametrize(
     "mutate",
     [
@@ -91,6 +117,12 @@ def _labels_mismatch(d: dict[str, Any]) -> None:
         _missing_domain_text,
         _unknown_key,
         _labels_mismatch,
+        _wrong_reverse_formula,
+        _wrong_display_formula,
+        _missing_vciom_rule,
+        _vciom_rule_on_numeric_block,
+        _bfi_mixed_scales,
+        _not_big_five,
     ],
 )
 def test_invalid_questionnaire_rejected(config_dir: Path, mutate: Any) -> None:

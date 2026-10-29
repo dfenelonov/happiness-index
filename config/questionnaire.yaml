@@ -98,6 +98,9 @@ scoring:
     raw_min: 5
     raw_max: 35
 
+  vciom:
+    block: vciom             # ответ хранится как id варианта, в индекс не входит
+
   traits:
     block: bfi10
     reverse_formula: "6 - x"

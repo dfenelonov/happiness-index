@@ -46,6 +46,7 @@ uv run alembic upgrade head       # миграции (DATABASE_URL из .env)
 uv run alembic revision --autogenerate -m "..."   # новая миграция после правки app/db/models.py
 uv run uvicorn app.main:app --reload
 uv run pytest                     # включает проверку «миграции == модели» на SQLite
+uv run pytest --cov=app/scoring --cov-branch --cov-report=term-missing   # покрытие подсчёта (цель 100%)
 uv run ruff check . && uv run ruff format .
 curl localhost:8000/healthz
 ```

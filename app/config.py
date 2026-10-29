@@ -18,6 +18,7 @@ PROJECT_ROOT = APP_DIR.parent
 QUESTIONNAIRE_FILE = "questionnaire.yaml"
 APP_CONFIG_FILE = "app.yaml"
 PLACEHOLDER_MARKERS = ("TODO_LICENSED_TEXT", "TODO_LEGAL")
+BIG_FIVE = ("E", "A", "C", "N", "O")  # совпадает с колонками results.trait_*
 INSECURE_SECRET_VALUES = frozenset({"", "change-me"})
 
 
@@ -151,6 +152,10 @@ class TraitsRule(_Strict):
     display_0_100: str
 
 
+class VciomRule(_Strict):
+    block: str
+
+
 class DomainsRule(_Strict):
     block: str
     aggregate: Literal["mean"]
@@ -207,6 +212,7 @@ class ArchetypeRule(_Strict):
 
 class ScoringRules(_Strict):
     happiness_index: HappinessIndexRule
+    vciom: VciomRule
     traits: TraitsRule
     domains: DomainsRule
     screening: ScreeningRule
@@ -250,11 +256,12 @@ class Questionnaire(_Strict):
                     raise ValueError(f"вопрос {item.id}: шкала не задана или не найдена")
 
         rules = self.scoring
-        for name in ("happiness_index", "traits", "domains", "screening"):
+        for name in ("happiness_index", "vciom", "traits", "domains", "screening"):
             if getattr(rules, name).block not in block_ids:
                 raise ValueError(f"scoring.{name}: блок не найден")
 
         self._check_happiness_index()
+        self._check_vciom()
         self._check_traits()
         self._check_domains()
         self._check_screening()
@@ -275,14 +282,32 @@ class Questionnaire(_Strict):
         if (rule.raw_min, rule.raw_max) != (sum(s.min for s in scales), sum(s.max for s in scales)):  # type: ignore[misc]
             raise ValueError("happiness_index: raw_min/raw_max не совпадают с суммой шкал блока")
 
+    def _check_vciom(self) -> None:
+        block = self.block(self.scoring.vciom.block)
+        if len(block.items) != 1 or self.scales[block.scale_of(block.items[0])].is_numeric:  # type: ignore[index]
+            raise ValueError("vciom: в блоке должен быть один вопрос со шкалой вариантов (options)")
+
     def _check_traits(self) -> None:
-        block = self.block(self.scoring.traits.block)
+        rule = self.scoring.traits
+        block = self.block(rule.block)
+        scales = set(map(block.scale_of, block.items))
         self._numeric_scales(block)
+        if len(scales) != 1:
+            raise ValueError(f"блок {block.id}: все вопросы черт должны быть на одной шкале")
+        scale = self.scales[scales.pop()]  # type: ignore[index]
+        lo, hi = scale.min, scale.max
+        # Формулы в конфиге — документация; код считает так же и сверяет это при старте.
+        if rule.reverse_formula != f"{lo + hi} - x":  # type: ignore[operator]
+            raise ValueError(f"traits.reverse_formula должна быть «{lo + hi} - x»")  # type: ignore[operator]
+        if rule.display_0_100 != f"(m - {lo}) / {hi - lo} * 100":  # type: ignore[operator]
+            raise ValueError(f"traits.display_0_100 должна быть «(m - {lo}) / {hi - lo} * 100»")  # type: ignore[operator]
         by_trait: dict[str, list[Item]] = {}
         for item in block.items:
             if item.trait is None:
                 raise ValueError(f"вопрос {item.id}: не указана черта (trait)")
             by_trait.setdefault(item.trait, []).append(item)
+        if set(by_trait) != set(BIG_FIVE):
+            raise ValueError(f"блок {block.id}: нужны ровно черты {BIG_FIVE}")
         for trait, items in by_trait.items():
             if len(items) != 2 or sum(i.reverse for i in items) != 1:
                 raise ValueError(f"черта {trait}: нужно 2 вопроса, ровно один обратный")
