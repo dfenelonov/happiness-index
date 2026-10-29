@@ -180,7 +180,11 @@ def test_production_refuses_insecure_secrets(
 ) -> None:
     secrets = {**SAFE_SECRETS, secret: bad_value}
     settings = make_settings(
-        tmp_path, app_env="production", config_dir=filled_config_dir, **secrets
+        tmp_path,
+        app_env="production",
+        config_dir=filled_config_dir,
+        templates_dir=tmp_path / "templates",
+        **secrets,
     )
     with pytest.raises(ConfigError, match=secret.upper()):
         check_production_readiness(settings)
@@ -188,6 +192,18 @@ def test_production_refuses_insecure_secrets(
 
 def test_production_starts_when_ready(filled_config_dir: Path, tmp_path: Path) -> None:
     settings = make_settings(
-        tmp_path, app_env="production", config_dir=filled_config_dir, **SAFE_SECRETS
+        tmp_path,
+        app_env="production",
+        config_dir=filled_config_dir,
+        templates_dir=tmp_path / "templates",
+        **SAFE_SECRETS,
     )
     create_app(settings)
+
+
+def test_production_refuses_legal_stub_templates(filled_config_dir: Path, tmp_path: Path) -> None:
+    settings = make_settings(
+        tmp_path, app_env="production", config_dir=filled_config_dir, **SAFE_SECRETS
+    )
+    with pytest.raises(ConfigError, match=r"legal_stub\.html: TODO_LEGAL"):
+        create_app(settings)

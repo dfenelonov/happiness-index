@@ -1,0 +1,20 @@
+{# Защитный контур (SPEC §3.7): без пейволла, продаж и апсейлов. #}
+<section id="support" class="mt-4 rounded-3xl border border-sky-200 bg-sky-50 p-6">
+  <p class="text-stone-800">
+    Похоже, сейчас тебе непросто. Это нормально, и с этим можно работать — лучше всего вместе со специалистом.
+  </p>
+  <ul class="mt-4 space-y-3">
+    {% for contact in app_config.support_contacts %}
+    <li class="rounded-2xl bg-white p-4">
+      <p class="font-semibold text-stone-900">{{ contact.name }}</p>
+      {% if contact.phone %}
+      <a href="tel:{{ contact.phone }}" data-contact-id="{{ contact.id }}" class="mt-1 inline-flex min-h-[44px] items-center text-lg font-semibold text-sky-700 underline">{{ contact.phone }}</a>
+      {% endif %}
+      {% if contact.url %}
+      <a href="{{ contact.url }}" data-contact-id="{{ contact.id }}" rel="noopener" target="_blank" class="mt-1 inline-flex min-h-[44px] items-center text-sky-700 underline">Перейти на сайт</a>
+      {% endif %}
+      {% if contact.note %}<p class="text-sm text-stone-500">{{ contact.note }}</p>{% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+</section>

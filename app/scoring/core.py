@@ -4,6 +4,7 @@
 число (или строка с числом, как в answers.value) для числовых шкал, id варианта для ВЦИОМ.
 """
 
+import math
 from collections.abc import Mapping
 from dataclasses import dataclass
 
@@ -92,9 +93,12 @@ def traits(q: Questionnaire, answers: Answers) -> dict[str, float]:
     return {t: sum(v) / len(v) for t, v in by_trait.items()}
 
 
-def trait_display(mean: float, scale: Scale) -> float:
-    """Перевод балла черты в 0–100 для показа: (m − min) / (max − min) × 100."""
-    return (mean - scale.min) / (scale.max - scale.min) * 100  # type: ignore[operator]
+def trait_display(mean: float, scale: Scale) -> int:
+    """Балл черты 0–100 для интерфейса: (m − min) / (max − min) × 100, округление половины вверх.
+
+    В results и в LLM уходят точные средние (1–5), а не это число.
+    """
+    return math.floor((mean - scale.min) / (scale.max - scale.min) * 100 + 0.5)  # type: ignore[operator]
 
 
 def archetype(q: Questionnaire, trait_scores: Mapping[str, float]) -> str:

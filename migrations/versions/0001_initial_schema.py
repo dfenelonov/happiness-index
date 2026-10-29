@@ -24,7 +24,7 @@ def upgrade() -> None:
     op.create_table('sessions',
     sa.Column('id', sa.Uuid(), nullable=False),
     sa.Column('sid_hash', sa.String(length=64), nullable=False),
-    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
+    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
     sa.Column('utm_source', sa.String(length=255), nullable=True),
     sa.Column('utm_medium', sa.String(length=255), nullable=True),
     sa.Column('utm_campaign', sa.String(length=255), nullable=True),
@@ -39,7 +39,7 @@ def upgrade() -> None:
     sa.Column('session_id', sa.Uuid(), nullable=False),
     sa.Column('item_id', sa.String(length=64), nullable=False),
     sa.Column('value', sa.String(length=32), nullable=False),
-    sa.Column('answered_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
+    sa.Column('answered_at', sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
     sa.ForeignKeyConstraint(['session_id'], ['sessions.id'], name=op.f('fk_answers_session_id_sessions'), ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('session_id', 'item_id', name=op.f('pk_answers'))
     )
@@ -48,7 +48,7 @@ def upgrade() -> None:
     sa.Column('session_id', sa.Uuid(), nullable=False),
     sa.Column('name', sa.String(length=64), nullable=False),
     sa.Column('props', sa.JSON().with_variant(postgresql.JSONB(astext_type=sa.Text()), 'postgresql'), nullable=False),
-    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
+    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
     sa.ForeignKeyConstraint(['session_id'], ['sessions.id'], name=op.f('fk_events_session_id_sessions'), ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id', name=op.f('pk_events'))
     )
@@ -72,7 +72,7 @@ def upgrade() -> None:
     sa.Column('yookassa_payment_id', sa.String(length=64), nullable=True),
     sa.Column('email_encrypted', sa.Text(), nullable=False),
     sa.Column('email_hash', sa.String(length=64), nullable=False),
-    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
+    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
     sa.Column('paid_at', sa.DateTime(timezone=True), nullable=True),
     sa.Column('refunded_at', sa.DateTime(timezone=True), nullable=True),
     sa.ForeignKeyConstraint(['session_id'], ['sessions.id'], name=op.f('fk_orders_session_id_sessions')),
@@ -95,7 +95,7 @@ def upgrade() -> None:
     sa.Column('leaks', sa.JSON().with_variant(postgresql.JSONB(astext_type=sa.Text()), 'postgresql'), nullable=False),
     sa.Column('vciom_answer', sa.String(length=32), nullable=False),
     sa.Column('screening_flag', sa.Boolean(), nullable=False),
-    sa.Column('completed_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
+    sa.Column('completed_at', sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
     sa.ForeignKeyConstraint(['session_id'], ['sessions.id'], name=op.f('fk_results_session_id_sessions'), ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('session_id', name=op.f('pk_results')),
     sa.UniqueConstraint('public_id', name=op.f('uq_results_public_id'))
@@ -109,7 +109,7 @@ def upgrade() -> None:
     sa.Column('model', sa.String(length=64), nullable=True),
     sa.Column('tokens_in', sa.Integer(), nullable=True),
     sa.Column('tokens_out', sa.Integer(), nullable=True),
-    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
+    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
     sa.CheckConstraint("status IN ('pending', 'ready', 'fallback', 'failed')", name=op.f('ck_reports_status')),
     sa.ForeignKeyConstraint(['order_id'], ['orders.id'], name=op.f('fk_reports_order_id_orders')),
     sa.PrimaryKeyConstraint('order_id', name=op.f('pk_reports')),

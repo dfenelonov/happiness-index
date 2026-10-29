@@ -255,6 +255,10 @@ class Questionnaire(_Strict):
                 if block.scale_of(item) not in self.scales:
                     raise ValueError(f"вопрос {item.id}: шкала не задана или не найдена")
 
+        stored = [b.store_answers for b in self.blocks]
+        if stored != sorted(stored, reverse=True):
+            raise ValueError("блоки с store_answers: false должны идти в конце теста")
+
         rules = self.scoring
         for name in ("happiness_index", "vciom", "traits", "domains", "screening"):
             if getattr(rules, name).block not in block_ids:
@@ -349,6 +353,30 @@ class CountryIndex(_Strict):
     source_name: str
     source_url: str
 
+    # Индекс ВЦИОМ = доля «да» − доля «нет» (в п.п.), отсюда остальные доли.
+    @property
+    def share_unhappy(self) -> float:
+        return self.share_happy - self.value / 100
+
+    @property
+    def share_hard_to_say(self) -> float:
+        return 1 - self.share_happy - self.share_unhappy
+
+    @model_validator(mode="after")
+    def _check(self) -> CountryIndex:
+        if not 0 <= self.share_unhappy <= 1 - self.share_happy:
+            raise ValueError("value и share_happy несовместимы: доля «нет» выходит за 0–100%")
+        return self
+
+
+class Landing(_Strict):
+    headline: str
+    subheadline: str
+
+
+class Consent(_Strict):
+    version: str = Field(min_length=1, max_length=32)
+
 
 class Pricing(_Strict):
     ab_variants_rub: list[int] = Field(min_length=1)
@@ -386,6 +414,8 @@ class SupportContact(_Strict):
 
 class AppConfig(_Strict):
     site_name: str
+    landing: Landing
+    consent: Consent
     country_index: CountryIndex
     pricing: Pricing
     fake_door: FakeDoor

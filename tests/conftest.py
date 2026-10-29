@@ -8,6 +8,7 @@ import yaml
 
 from app.config import (
     APP_CONFIG_FILE,
+    APP_DIR,
     PLACEHOLDER_MARKERS,
     PROJECT_ROOT,
     QUESTIONNAIRE_FILE,
@@ -27,7 +28,7 @@ def make_settings(tmp_path: Path, **overrides: Any) -> Settings:
         "app_env": "development",
         "database_url": f"sqlite:///{tmp_path / 'test.sqlite3'}",
         "config_dir": REAL_CONFIG_DIR,
-        "templates_dir": tmp_path / "templates",
+        "templates_dir": APP_DIR / "templates",
     }
     values.update(overrides)
     return Settings(_env_file=None, **values)

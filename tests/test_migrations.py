@@ -7,7 +7,7 @@ from sqlalchemy import create_engine, inspect
 from app.config import PROJECT_ROOT
 
 
-def _alembic_config(db_url: str) -> Config:
+def alembic_config(db_url: str) -> Config:
     cfg = Config(str(PROJECT_ROOT / "alembic.ini"))
     cfg.set_main_option("sqlalchemy.url", db_url)
     cfg.attributes["configure_logger"] = False
@@ -16,7 +16,7 @@ def _alembic_config(db_url: str) -> Config:
 
 def test_migrations_upgrade_match_models_and_downgrade(tmp_path: Path) -> None:
     db_url = f"sqlite:///{tmp_path / 'migrations.sqlite3'}"
-    cfg = _alembic_config(db_url)
+    cfg = alembic_config(db_url)
 
     command.upgrade(cfg, "head")
     tables = set(inspect(create_engine(db_url)).get_table_names())

@@ -94,8 +94,11 @@ def test_trait_extremes() -> None:
     assert result == {"E": 5.0, "A": 3.0, "C": 3.0, "N": 1.0, "O": 3.0}
 
 
-@pytest.mark.parametrize(("mean", "display"), [(1.0, 0.0), (1.5, 12.5), (3.0, 50.0), (5.0, 100.0)])
-def test_trait_display(mean: float, display: float) -> None:
+@pytest.mark.parametrize(
+    ("mean", "display"),
+    [(1.0, 0), (1.5, 13), (2.5, 38), (3.0, 50), (3.5, 63), (4.5, 88), (5.0, 100)],
+)
+def test_trait_display_rounds_half_up(mean: float, display: int) -> None:
     assert trait_display(mean, Q.scales["agree5"]) == display
 
 
