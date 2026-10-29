@@ -5,7 +5,7 @@
 
 ## Этап 0. Каркас (≈ 0,5 дня)
 
-- [ ] `pyproject.toml` (uv), структура `app/` (`main.py`, `config.py`, `db/`, `routes/`, `scoring/`,
+- [x] `pyproject.toml` (uv), структура `app/` (`main.py`, `config.py`, `db/`, `routes/`, `scoring/`,
       `services/`, `templates/`, `static/`), `tests/`
 - [x] Настройки через pydantic-settings из `.env`; загрузка `config/questionnaire.yaml` и `config/app.yaml`
       с валидацией схемы при старте
