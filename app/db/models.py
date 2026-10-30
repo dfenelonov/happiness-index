@@ -120,7 +120,11 @@ class Report(Base):
     model: Mapped[str | None] = mapped_column(String(64))
     tokens_in: Mapped[int | None] = mapped_column(Integer)
     tokens_out: Mapped[int | None] = mapped_column(Integer)
+    attempts: Mapped[int | None] = mapped_column(Integer)
+    cost_rub: Mapped[float | None] = mapped_column(Float)
     created_at: Mapped[datetime] = _created_at()
+    generated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    email_sent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class Lead(Base):

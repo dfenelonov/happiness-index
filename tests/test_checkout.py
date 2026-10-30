@@ -317,7 +317,8 @@ def test_return_page_pending(client: TestClient, app: FastAPI) -> None:
 def test_return_page_checks_api_without_webhook(client: TestClient, app: FastAPI) -> None:
     order = paid_setup(client, app)
     gateway(app).set_status(order.yookassa_payment_id, "succeeded")
-    assert "Оплата прошла" in client.get("/checkout/return").text
+    r = client.get("/checkout/return")  # оплачено → отчёт создан → сразу на его страницу
+    assert r.status_code == 303 and r.headers["location"].startswith("/report/")
     assert len(events(app, "payment_success")) == 1
 
 
@@ -404,8 +405,19 @@ def test_normalize_email(raw: str, normalized: str | None) -> None:
 
 
 def test_cipher_without_key_in_dev() -> None:
-    cipher = EmailCipher("", "secret")
+    cipher = EmailCipher("", "")
     assert cipher.decrypt(cipher.encrypt("a@b.ru")) == "a@b.ru"
+
+
+def test_email_hash_independent_of_secret_key(tmp_path: Path) -> None:
+    from app.main import create_app
+
+    keys = {"email_hash_key": "fixed-hash-key"}
+    one = create_app(make_settings(tmp_path, secret_key="first", **keys)).state.email_cipher
+    two = create_app(make_settings(tmp_path, secret_key="rotated", **keys)).state.email_cipher
+    assert one.hash("a@b.ru") == two.hash("a@b.ru")
+    other = create_app(make_settings(tmp_path, email_hash_key="other")).state.email_cipher
+    assert other.hash("a@b.ru") != one.hash("a@b.ru")
 
 
 def test_live_yookassa_key_refused(tmp_path: Path) -> None:

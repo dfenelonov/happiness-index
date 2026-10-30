@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block title %}Твой отчёт — {{ app_config.site_name }}{% endblock %}
+{% block og %}{% if report.status == "pending" %}<meta http-equiv="refresh" content="3">{% endif %}<meta name="robots" content="noindex, nofollow">{% endblock %}
+{% block content %}
+{% if report.status == "pending" %}
+<section class="rounded-3xl bg-white p-6 text-center shadow-sm">
+  <h1 class="text-2xl font-bold text-stone-900">Готовим твой отчёт…</h1>
+  <p class="mt-3 text-stone-600">Обычно это меньше минуты. Страница обновится сама, а ссылка уже ушла тебе на почту.</p>
+  <div class="mx-auto mt-6 h-2 w-40 overflow-hidden rounded-full bg-amber-100"><div class="h-full w-1/2 animate-pulse rounded-full bg-amber-400"></div></div>
+</section>
+{% elif report.status == "failed" %}
+<section class="rounded-3xl bg-white p-6 text-center shadow-sm">
+  <h1 class="text-2xl font-bold text-stone-900">Отчёт задерживается</h1>
+  <p class="mt-3 text-stone-600">Что-то пошло не так при подготовке. Мы уже разбираемся — ссылка останется той же, отчёт появится здесь.</p>
+</section>
+{% else %}
+<section class="rounded-3xl bg-white p-6 shadow-sm">
+  <p class="text-sm font-semibold uppercase tracking-wide text-amber-700">Персональный отчёт</p>
+  <h1 class="mt-2 text-2xl font-bold text-stone-900">Индекс {{ result.happiness_index }} · {{ archetype_name }}</h1>
+  <p class="mt-4 text-stone-700">{{ content.summary }}</p>
+  <a href="/report/{{ report.token }}.pdf" class="mt-5 flex min-h-[48px] w-full items-center justify-center rounded-2xl border border-stone-300 font-semibold text-stone-800">Скачать PDF</a>
+</section>
+
+<section class="mt-4 rounded-3xl bg-white p-6 shadow-sm">
+  <h2 class="text-lg font-bold text-stone-900">Твой тип подробно</h2>
+  <p class="mt-3 text-stone-700">{{ content.archetype_deep_dive }}</p>
+</section>
+
+<section class="mt-4 rounded-3xl bg-white p-6 shadow-sm">
+  <h2 class="text-lg font-bold text-stone-900">Три утечки счастья</h2>
+  {% for leak in content["leaks"] %}
+  <div class="mt-5">
+    <h3 class="font-semibold text-stone-900">{{ loop.index }}. {{ domain_names.get(leak.domain, leak.domain) }}</h3>
+    <p class="mt-1 text-stone-700">{{ leak.why_for_you }}</p>
+    <ul class="mt-2 list-disc space-y-1 pl-5 text-stone-700">
+      {% for action in leak.actions %}<li>{{ action }}</li>{% endfor %}
+    </ul>
+  </div>
+  {% endfor %}
+</section>
+
+<section class="mt-4 rounded-3xl bg-white p-6 shadow-sm">
+  <h2 class="text-lg font-bold text-stone-900">На что опереться</h2>
+  <ul class="mt-3 list-disc space-y-1 pl-5 text-stone-700">
+    {% for item in content.strengths_to_use %}<li>{{ item }}</li>{% endfor %}
+  </ul>
+</section>
+
+<section class="mt-4 rounded-3xl bg-white p-6 shadow-sm">
+  <h2 class="text-lg font-bold text-stone-900">План на 30 дней</h2>
+  {% for week in content.plan_30_days %}
+  <div class="mt-4">
+    <h3 class="font-semibold text-stone-900">Неделя {{ week.week }}: {{ week.focus }}</h3>
+    <ul class="mt-1 list-disc space-y-1 pl-5 text-stone-700">
+      {% for step in week.steps %}<li>{{ step }}</li>{% endfor %}
+    </ul>
+  </div>
+  {% endfor %}
+</section>
+
+<section class="mt-4 rounded-3xl bg-white p-6 shadow-sm">
+  <h2 class="text-lg font-bold text-stone-900">Через месяц</h2>
+  <p class="mt-3 text-stone-700">{{ content.remeasure_note }}</p>
+</section>
+{% endif %}
+{% endblock %}

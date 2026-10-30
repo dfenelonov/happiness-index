@@ -5,6 +5,7 @@
 """
 
 import logging
+from collections.abc import Callable
 from datetime import UTC, datetime
 from decimal import Decimal
 
@@ -95,8 +96,14 @@ def _transition(db: DbSession, order: Order, source: str, target: str, **values)
     return result.rowcount == 1
 
 
-def apply_payment(db: DbSession, order: Order, info: PaymentInfo) -> None:
-    """Применяет статус платежа, полученный из API. Чужой заказ или другая сумма — игнор."""
+OnPaid = Callable[[DbSession, Order], None]
+
+
+def apply_payment(
+    db: DbSession, order: Order, info: PaymentInfo, on_paid: OnPaid | None = None
+) -> None:
+    """Применяет статус платежа, полученный из API. Чужой заказ или другая сумма — игнор.
+    `on_paid` вызывается ровно один раз — при переходе pending → succeeded."""
     if (
         info.order_id != str(order.id)
         or info.currency != "RUB"
@@ -108,6 +115,8 @@ def apply_payment(db: DbSession, order: Order, info: PaymentInfo) -> None:
     now = datetime.now(UTC)
     if info.status == "succeeded" and _transition(db, order, "pending", "succeeded", paid_at=now):
         log_event(db, session, "payment_success", price=order.amount_rub)
+        if on_paid is not None:
+            on_paid(db, order)
     elif info.status == "canceled":
         _transition(db, order, "pending", "canceled")
     if info.refunded_amount >= info.amount and _transition(
@@ -117,7 +126,9 @@ def apply_payment(db: DbSession, order: Order, info: PaymentInfo) -> None:
     db.refresh(order)
 
 
-def sync_order(db: DbSession, gateway: PaymentGateway, order: Order) -> None:
+def sync_order(
+    db: DbSession, gateway: PaymentGateway, order: Order, on_paid: OnPaid | None = None
+) -> None:
     """Перепроверка статуса у шлюза (вебхук, страница возврата). Ошибки API — без изменений."""
     if not order.yookassa_payment_id:
         return
@@ -126,4 +137,4 @@ def sync_order(db: DbSession, gateway: PaymentGateway, order: Order) -> None:
     except PaymentError:
         log.warning("не удалось получить платёж %s", order.yookassa_payment_id)
         return
-    apply_payment(db, order, info)
+    apply_payment(db, order, info, on_paid)

@@ -11,7 +11,7 @@ from app.config import (
     load_configs,
 )
 from app.main import create_app
-from tests.conftest import REAL_CONFIG_DIR, SAFE_SECRETS, edit_yaml, make_settings
+from tests.conftest import PROD_PROVIDER, REAL_CONFIG_DIR, SAFE_SECRETS, edit_yaml, make_settings
 
 
 def test_real_configs_are_valid() -> None:
@@ -185,7 +185,7 @@ def test_development_starts_with_placeholders(tmp_path: Path) -> None:
 
 
 def test_production_refuses_placeholders(tmp_path: Path) -> None:
-    settings = make_settings(tmp_path, app_env="production", **SAFE_SECRETS)
+    settings = make_settings(tmp_path, app_env="production", **SAFE_SECRETS, **PROD_PROVIDER)
     with pytest.raises(ConfigError, match="TODO_LICENSED_TEXT"):
         create_app(settings)
 
@@ -195,7 +195,7 @@ def test_production_refuses_placeholders(tmp_path: Path) -> None:
 def test_production_refuses_insecure_secrets(
     filled_config_dir: Path, tmp_path: Path, secret: str, bad_value: str
 ) -> None:
-    secrets = {**SAFE_SECRETS, secret: bad_value}
+    secrets = {**SAFE_SECRETS, **PROD_PROVIDER, secret: bad_value}
     settings = make_settings(
         tmp_path,
         app_env="production",
@@ -214,13 +214,18 @@ def test_production_starts_when_ready(filled_config_dir: Path, tmp_path: Path) -
         config_dir=filled_config_dir,
         templates_dir=tmp_path / "templates",
         **SAFE_SECRETS,
+        **PROD_PROVIDER,
     )
     create_app(settings)
 
 
 def test_production_refuses_legal_stub_templates(filled_config_dir: Path, tmp_path: Path) -> None:
     settings = make_settings(
-        tmp_path, app_env="production", config_dir=filled_config_dir, **SAFE_SECRETS
+        tmp_path,
+        app_env="production",
+        config_dir=filled_config_dir,
+        **SAFE_SECRETS,
+        **PROD_PROVIDER,
     )
     with pytest.raises(ConfigError, match=r"legal_stub\.html: TODO_LEGAL"):
         create_app(settings)

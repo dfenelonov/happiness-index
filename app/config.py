@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from collections import Counter
 from collections.abc import Iterable, Iterator
 from functools import lru_cache
@@ -17,6 +18,7 @@ PROJECT_ROOT = APP_DIR.parent
 
 QUESTIONNAIRE_FILE = "questionnaire.yaml"
 APP_CONFIG_FILE = "app.yaml"
+REPORT_PROMPT_FILE = "report_prompt.yaml"
 PLACEHOLDER_MARKERS = ("TODO_LICENSED_TEXT", "TODO_LEGAL")
 BIG_FIVE = ("E", "A", "C", "N", "O")  # совпадает с колонками results.trait_*
 INSECURE_SECRET_VALUES = frozenset({"", "change-me"})
@@ -36,6 +38,7 @@ class Settings(BaseSettings):
     app_base_url: str = "http://localhost:8000"
     secret_key: str = "change-me"
     email_encryption_key: str = ""
+    email_hash_key: str = ""  # отдельный от SECRET_KEY: ротация SECRET_KEY не ломает поиск по email
 
     database_url: str = "postgresql+psycopg://app:app@localhost:5432/happiness"
 
@@ -43,10 +46,12 @@ class Settings(BaseSettings):
     yookassa_secret_key: str = ""
     yookassa_allow_live: bool = False  # боевой магазин — только по явному решению владельца
 
-    llm_provider: Literal["yandexgpt", "gigachat"] = "yandexgpt"
+    llm_provider: Literal["yandexgpt", "gigachat", "mock"] = "yandexgpt"
     yandexgpt_api_key: str = ""
     yandexgpt_folder_id: str = ""
     gigachat_auth_key: str = ""
+    gigachat_scope: str = "GIGACHAT_API_PERS"
+    gigachat_ca_bundle: str = ""  # сертификат НУЦ Минцифры, если его нет в системном хранилище
 
     smtp_host: str = ""
     smtp_port: int = 465
@@ -57,6 +62,8 @@ class Settings(BaseSettings):
     yandex_metrika_id: str = Field("", pattern=r"^\d*$")  # только цифры счётчика
     admin_user: str = "admin"
     admin_password: str = "change-me"
+
+    report_jobs_sync: bool = False  # генерация отчёта в потоке запроса — только тесты и скрипты
 
     config_dir: Path = PROJECT_ROOT / "config"
     templates_dir: Path = APP_DIR / "templates"
@@ -442,6 +449,30 @@ class Payments(_Strict):
     receipt: Receipt
 
 
+class ReportModel(_Strict):
+    model: str
+    price_rub_per_1k_input: float | None = Field(None, ge=0)
+    price_rub_per_1k_output: float | None = Field(None, ge=0)
+
+    def cost_rub(self, tokens_in: int, tokens_out: int) -> float | None:
+        if self.price_rub_per_1k_input is None or self.price_rub_per_1k_output is None:
+            return None
+        return (
+            tokens_in * self.price_rub_per_1k_input + tokens_out * self.price_rub_per_1k_output
+        ) / 1000
+
+
+class ReportSettings(_Strict):
+    models: dict[Literal["yandexgpt", "gigachat"], ReportModel]
+    temperature: float = Field(ge=0, le=1)
+    max_output_tokens: int = Field(gt=0)
+    max_attempts: int = Field(ge=1, le=5)
+    attempt_timeout_seconds: float = Field(gt=0)
+    deadline_seconds: float = Field(gt=0)
+    budget_rub_per_report: float = Field(gt=0)
+    low_index_threshold: int = Field(ge=0, le=100)
+
+
 class AppConfig(_Strict):
     site_name: str
     landing: Landing
@@ -453,6 +484,7 @@ class AppConfig(_Strict):
     fake_door: FakeDoor
     percentile: Percentile
     support_contacts: list[SupportContact] = Field(min_length=1)
+    report: ReportSettings
 
     @model_validator(mode="after")
     def _check(self) -> AppConfig:
@@ -473,9 +505,34 @@ class AppConfig(_Strict):
 # --- Загрузка и проверки при старте --------------------------------------------------------------
 
 
+class ReportPrompt(_Strict):
+    version: int
+    system: str = Field(min_length=1)
+    user: str = Field(min_length=1)
+    forbidden: dict[str, list[str]] = Field(min_length=1)
+
+    @model_validator(mode="after")
+    def _check(self) -> ReportPrompt:
+        from string import Template
+
+        placeholders = {"input_json", "domain_names", "low_index_threshold", "schema_example"}
+        try:
+            Template(self.user).substitute(dict.fromkeys(placeholders, ""))
+        except (KeyError, ValueError) as e:
+            raise ValueError(f"user: неизвестный или битый плейсхолдер ({e})") from None
+        for category, patterns in self.forbidden.items():
+            for pattern in patterns:
+                try:
+                    re.compile(pattern, re.IGNORECASE)
+                except re.error as e:
+                    raise ValueError(f"forbidden.{category}: {pattern!r}: {e}") from None
+        return self
+
+
 class Configs(NamedTuple):
     questionnaire: Questionnaire
     app: AppConfig
+    report_prompt: ReportPrompt
 
 
 def _read_yaml(path: Path) -> dict[str, Any]:
@@ -499,6 +556,7 @@ def load_configs(config_dir: Path) -> Configs:
     configs = Configs(
         questionnaire=_load_model(Questionnaire, config_dir / QUESTIONNAIRE_FILE),
         app=_load_model(AppConfig, config_dir / APP_CONFIG_FILE),
+        report_prompt=_load_model(ReportPrompt, config_dir / REPORT_PROMPT_FILE),
     )
     q = configs.questionnaire
     vciom_block = q.block(q.scoring.vciom.block)
@@ -541,9 +599,21 @@ def find_insecure_secrets(settings: Settings) -> list[str]:
         "SECRET_KEY": settings.secret_key,
         "ADMIN_PASSWORD": settings.admin_password,
         "EMAIL_ENCRYPTION_KEY": settings.email_encryption_key,
+        "EMAIL_HASH_KEY": settings.email_hash_key,
         "YOOKASSA_SHOP_ID": settings.yookassa_shop_id,
         "YOOKASSA_SECRET_KEY": settings.yookassa_secret_key,
+        "SMTP_HOST": settings.smtp_host,
+        "MAIL_FROM": settings.mail_from,
     }
+    if settings.llm_provider == "yandexgpt":
+        required |= {
+            "YANDEXGPT_API_KEY": settings.yandexgpt_api_key,
+            "YANDEXGPT_FOLDER_ID": settings.yandexgpt_folder_id,
+        }
+    elif settings.llm_provider == "gigachat":
+        required["GIGACHAT_AUTH_KEY"] = settings.gigachat_auth_key
+    else:
+        required["LLM_PROVIDER"] = ""  # мок в production запрещён
     return [
         f"{name}: пустой или значение по умолчанию"
         for name, value in required.items()

@@ -63,12 +63,18 @@
 
 ## Этап 5. LLM-отчёт (≈ 2 дня)
 
-- [ ] `LLMProvider` + реализации YandexGPT и GigaChat, выбор через `.env`
-- [ ] Генерация по `docs/LLM_REPORT.md`: JSON-схема, валидация, 3 ретрая, fallback-шаблоны
-- [ ] Фоновая задача после `payment.succeeded`; экран ожидания
-- [ ] Страница отчёта + PDF; письмо со ссылкой (SMTP из `.env`)
-- [ ] Тест: проверка, что в промпт не попадает email и ответы скрининга
-- [ ] Событие `report_view` (`status`)
+- [x] `LLMProvider` + реализации YandexGPT и GigaChat, выбор через `.env`
+- [x] Генерация по `docs/LLM_REPORT.md`: JSON-схема, валидация, 3 ретрая, fallback-шаблоны
+- [x] Фоновая задача после `payment.succeeded`; экран ожидания
+- [x] Страница отчёта + PDF; письмо со ссылкой (SMTP из `.env`)
+- [x] Тест: проверка, что в промпт не попадает email и ответы скрининга
+- [x] Событие `report_view` (`status`)
+- [x] Мок LLM-провайдера: весь путь работает без ключей (вне production)
+- [x] `scripts/eval_reports.py` + `evals/report_profiles.yaml` (20 профилей): JSON/схема, запрещённые
+      темы, длина, специалист при низком индексе, токены, стоимость → `runs/report_eval/.../summary.md`
+- [x] `scripts/regenerate_reports.py` — перегенерация fallback/failed
+- [ ] Прогон eval и реального отчёта с ключами YandexGPT/GigaChat — владелец
+- [ ] Цены токенов в `config/app.yaml` (`report.models.*.price_rub_per_1k_*`) — владелец
 
 **Готово, когда:** после тестовой оплаты через ≤ 60 с открывается отчёт; при отключённом LLM — fallback.
 
@@ -85,6 +91,7 @@
 
 - [ ] Юридические страницы-заглушки, футер, cookie-баннер
 - [ ] Rate limiting, логи без ПДн, бэкапы
+- [ ] Cron для `scripts/regenerate_reports.py`
 - [ ] uvicorn `--proxy-headers` + `--forwarded-allow-ips` за балансировщиком: иначе проверка IP
       вебхука ЮKassa видит адрес прокси
 - [ ] Деплой в Yandex Cloud (инструкция в `docs/DEPLOY.md`), HTTPS, домен

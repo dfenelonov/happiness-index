@@ -7,7 +7,7 @@ from fastapi import APIRouter, HTTPException, Request, Response
 from fastapi.responses import HTMLResponse
 from sqlalchemy import select
 
-from app.db.models import Order
+from app.db.models import Order, Report
 from app.db.session import Db
 from app.routes.results import result_context
 from app.services.crypto import normalize_email
@@ -25,6 +25,10 @@ from app.web import is_htmx, redirect, render
 
 log = logging.getLogger(__name__)
 router = APIRouter()
+
+
+def _on_paid(request: Request):
+    return request.app.state.report_service.on_paid
 
 
 def _paywall_error(request: Request, db: Db, result, session, error: str, email: str, status: int):
@@ -82,7 +86,10 @@ def checkout_return(request: Request, db: Db):
     if order is None:
         return redirect(request, "/")
     if order.status == "pending":
-        sync_order(db, request.app.state.payment_gateway, order)
+        sync_order(db, request.app.state.payment_gateway, order, _on_paid(request))
+    report = db.get(Report, order.id) if order.status == "succeeded" else None
+    if report is not None:
+        return redirect(request, f"/report/{report.token}")
     result = result_of(db, session)
     return render(
         request,
@@ -111,7 +118,7 @@ async def yookassa_webhook(request: Request, db: Db) -> Response:
         info = gateway.get_payment(order.yookassa_payment_id)
     except PaymentError:
         raise HTTPException(503) from None  # ЮKassa повторит вебхук
-    apply_payment(db, order, info)
+    apply_payment(db, order, info, _on_paid(request))
     return Response(status_code=200)
 
 
@@ -151,5 +158,5 @@ async def mock_payment_action(payment_id: str, request: Request, db: Db):
     # Как настоящая ЮKassa: уведомление на вебхук (через тот же код), затем возврат на сайт.
     order = db.scalar(select(Order).where(Order.yookassa_payment_id == payment_id))
     if order is not None:
-        sync_order(db, gateway, order)
+        sync_order(db, gateway, order, _on_paid(request))
     return redirect(request, "/checkout/return")

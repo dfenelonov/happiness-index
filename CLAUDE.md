@@ -49,7 +49,12 @@ uv run pytest                     # включает проверку «мигр
 uv run pytest --cov=app/scoring --cov-branch --cov-report=term-missing   # покрытие подсчёта (цель 100%)
 uv run ruff check . && uv run ruff format .
 curl localhost:8000/healthz
+uv run python scripts/eval_reports.py --provider mock   # оценка отчётов → runs/report_eval/
+uv run python scripts/regenerate_reports.py             # перегенерация fallback-отчётов
 ```
+
+Без ключей ЮKassa и LLM (вне production) работают моки: оплата — страница `/dev/yookassa/{id}`,
+отчёт — `MockLLMProvider`, письма — dev-outbox в памяти.
 
 Если порты 5432/8000 заняты, задай `DB_PORT` / `APP_PORT` (в `.env` или в окружении) и поправь порт
 в `DATABASE_URL`.

@@ -4,6 +4,7 @@ import hashlib
 import hmac
 import logging
 import re
+import secrets
 
 from cryptography.fernet import Fernet
 
@@ -22,14 +23,17 @@ def normalize_email(raw: str) -> str | None:
 
 
 class EmailCipher:
-    def __init__(self, fernet_key: str, hash_secret: str) -> None:
+    def __init__(self, fernet_key: str, hash_key: str) -> None:
+        # Пустые ключи — только development (production без них не стартует): после рестарта
+        # старые email не расшифровать и не найти — для локальной разработки это допустимо.
         if not fernet_key:
-            # Только development (production без ключа не стартует): после рестарта старые
-            # email не расшифровать — для локальной разработки это допустимо.
             log.warning("EMAIL_ENCRYPTION_KEY пуст — используется временный ключ")
             fernet_key = Fernet.generate_key().decode()
+        if not hash_key:
+            log.warning("EMAIL_HASH_KEY пуст — используется временный ключ")
+            hash_key = secrets.token_hex(32)
         self._fernet = Fernet(fernet_key.encode())
-        self._hash_secret = hash_secret.encode()
+        self._hash_key = hash_key.encode()
 
     def encrypt(self, email: str) -> str:
         return self._fernet.encrypt(email.encode()).decode()
@@ -38,4 +42,4 @@ class EmailCipher:
         return self._fernet.decrypt(token.encode()).decode()
 
     def hash(self, email: str) -> str:
-        return hmac.new(self._hash_secret, email.encode(), hashlib.sha256).hexdigest()
+        return hmac.new(self._hash_key, email.encode(), hashlib.sha256).hexdigest()

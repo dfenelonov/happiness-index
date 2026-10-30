@@ -53,3 +53,24 @@ support_contacts:
   - {id: emergency, name: "Экстренные службы", phone: "112", note: "если есть угроза жизни"}
   - {id: helpline, name: "TODO_LEGAL: телефон доверия для взрослых", phone: "TODO_LEGAL"}
   - {id: psychologist, name: "TODO_LEGAL: сервис записи к психологу", url: "TODO_LEGAL"}
+
+report:
+  models:
+    # Цены — ₽ за 1000 токенов. TODO: заполнить по текущему прайсу провайдера перед запуском
+    # (пока null — стоимость в логах и eval показывается как «—»).
+    yandexgpt:
+      model: "yandexgpt/latest"            # modelUri = gpt://<YANDEXGPT_FOLDER_ID>/<model>
+      price_rub_per_1k_input: null
+      price_rub_per_1k_output: null
+    gigachat:
+      model: "GigaChat"
+      price_rub_per_1k_input: null
+      price_rub_per_1k_output: null
+  temperature: 0.5
+  max_output_tokens: 3000
+  max_attempts: 3
+  attempt_timeout_seconds: 25
+  deadline_seconds: 55            # отчёт должен открыться ≤ 60 с после оплаты
+  budget_rub_per_report: 15       # ориентир финмодели; eval подсвечивает превышение
+  low_index_threshold: 40         # ниже — мягкая рекомендация поговорить со специалистом
+

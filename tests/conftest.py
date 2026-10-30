@@ -20,12 +20,18 @@ from app.config import (
 )
 
 REAL_CONFIG_DIR = PROJECT_ROOT / "config"
+PROD_PROVIDER = {"llm_provider": "yandexgpt"}  # мок LLM в production запрещён
 SAFE_SECRETS = {
     "secret_key": "s3cret-for-tests",
     "admin_password": "admin-pass-for-tests",
     "email_encryption_key": "dGVzdC1rZXktdGVzdC1rZXktdGVzdC1rZXktdGVzdC0=",
+    "email_hash_key": "hash-key-for-tests",
     "yookassa_shop_id": "123456",
     "yookassa_secret_key": "test_secret_for_tests",
+    "smtp_host": "smtp.example.ru",
+    "mail_from": "report@example.ru",
+    "yandexgpt_api_key": "yandex-key-for-tests",
+    "yandexgpt_folder_id": "folder-for-tests",
 }
 
 
@@ -36,6 +42,8 @@ def make_settings(tmp_path: Path, **overrides: Any) -> Settings:
         "config_dir": REAL_CONFIG_DIR,
         "templates_dir": APP_DIR / "templates",
         "cache_dir": tmp_path / "cache",
+        "report_jobs_sync": True,
+        "llm_provider": "mock",
     }
     values.update(overrides)
     return Settings(_env_file=None, **values)
