@@ -44,7 +44,7 @@ docker compose up -d --build      # app + Postgres; миграции приме�
 uv sync                           # зависимости, включая dev-группу
 uv run alembic upgrade head       # миграции (DATABASE_URL из .env)
 uv run alembic revision --autogenerate -m "..."   # новая миграция после правки app/db/models.py
-uv run uvicorn app.main:app --reload
+uv run uvicorn app.main:app --reload --no-access-log   # access-лог без ПДн — свой
 uv run pytest                     # включает проверку «миграции == модели» на SQLite
 uv run pytest --cov=app/scoring --cov-branch --cov-report=term-missing   # покрытие подсчёта (цель 100%)
 uv run ruff check . && uv run ruff format .
@@ -52,7 +52,14 @@ curl localhost:8000/healthz
 uv run python scripts/eval_reports.py --provider mock   # оценка отчётов → runs/report_eval/
 uv run python scripts/regenerate_reports.py             # перегенерация fallback-отчётов
 uv run python scripts/seed_demo.py --sessions 4000      # демо-данные для /admin (не в production)
+sh scripts/build_css.sh                                 # пересобрать app/static/app.css после правки шаблонов
+DATABASE_URL=... sh scripts/backup_db.sh                # pg_dump с ротацией
+docker compose -f deploy/docker-compose.prod.yml --env-file .env up -d --build   # production, docs/DEPLOY.md
 ```
+
+Tailwind собирается в статический `app/static/app.css` (CDN не используется): после правки классов в
+шаблонах запусти `scripts/build_css.sh` — иначе упадёт `tests/test_static.py`. Что нужно от владельца
+до запуска — docs/LAUNCH_CHECKLIST.md.
 
 `/admin` — basic auth (`ADMIN_USER` / `ADMIN_PASSWORD`). Свои браузеры команды помечай ссылкой
 `/internal/<INTERNAL_LINK_TOKEN>`: такие сессии, dev-окружение и мок-оплаты не входят в метрики.

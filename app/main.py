@@ -1,6 +1,8 @@
+import hashlib
 import logging
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI, Request
 from fastapi.exception_handlers import http_exception_handler
@@ -8,6 +10,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
+from app import access_log
 from app.config import (
     APP_DIR,
     Settings,
@@ -22,6 +25,7 @@ from app.services.crypto import EmailCipher
 from app.services.llm import make_llm_provider
 from app.services.mailer import make_mailer
 from app.services.payments import MockGateway, PaymentGateway, YooKassaGateway
+from app.services.rate_limit import RateLimiter
 from app.services.report_jobs import ReportService
 from app.services.test_flow import TestFlow
 from app.web import render
@@ -36,6 +40,14 @@ async def _lifespan(app: FastAPI):
     yield
     if service.executor is not None:
         service.executor.shutdown(wait=False, cancel_futures=True)
+
+
+def asset_version(static_dir: Path) -> str:
+    """Короткий хеш CSS/JS — параметр ?v= сбрасывает кеш браузера после деплоя."""
+    digest = hashlib.sha256()
+    for name in ("app.css", "app.js"):
+        digest.update((static_dir / name).read_bytes())
+    return digest.hexdigest()[:10]
 
 
 def make_gateway(settings: Settings) -> PaymentGateway:
@@ -72,6 +84,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         configs.questionnaire, show_placeholders=not settings.is_production
     )
     app.state.templates = Jinja2Templates(directory=settings.templates_dir)
+    app.state.rate_limiter = RateLimiter(dict(configs.app.rate_limits))
     app.state.payment_gateway = make_gateway(settings)
     app.state.email_cipher = EmailCipher(settings.email_encryption_key, settings.email_hash_key)
     app.state.engine = create_db_engine(settings.database_url)
@@ -88,7 +101,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         executor=None if settings.report_jobs_sync else ThreadPoolExecutor(REPORT_WORKERS),
     )
 
+    access_log.install(app)
     app.mount("/static", StaticFiles(directory=APP_DIR / "static"), name="static")
+    app.state.asset_version = asset_version(APP_DIR / "static")
     for module in (health, pages, test, results, events, checkout, report, admin):
         app.include_router(module.router)
 

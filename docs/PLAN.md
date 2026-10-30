@@ -94,13 +94,16 @@
 
 ## Этап 7. Полировка и деплой (≈ 1 день)
 
-- [ ] Юридические страницы-заглушки, футер, cookie-баннер
-- [ ] Rate limiting, логи без ПДн, бэкапы
-- [ ] Cron для `scripts/regenerate_reports.py`
-- [ ] uvicorn `--proxy-headers` + `--forwarded-allow-ips` за балансировщиком: иначе проверка IP
-      вебхука ЮKassa видит адрес прокси
-- [ ] Деплой в Yandex Cloud (инструкция в `docs/DEPLOY.md`), HTTPS, домен
-- [ ] Lighthouse mobile ≥ 85
+- [x] Юридические страницы-заглушки, футер, cookie-баннер, страница «О методике» (авторы шкал)
+- [x] Rate limiting (`/api/answers`, `/checkout`, `/lead`, `/api/events`), логи без ПДн (свой access-лог
+      без IP, query и токенов), бэкапы (`scripts/backup_db.sh`, сервис `backup`)
+- [x] Cron для `scripts/regenerate_reports.py` — сервис `scheduler` в `deploy/docker-compose.prod.yml`
+- [x] uvicorn `--proxy-headers` + `--forwarded-allow-ips` за Caddy
+- [x] Инструкция `docs/DEPLOY.md`, `deploy/docker-compose.prod.yml`, Caddy с HTTPS
+- [ ] Деплой в Yandex Cloud, домен — владелец (нет доступа к облаку), по docs/DEPLOY.md
+- [x] Lighthouse mobile ≥ 85: локально 100 по производительности на лендинге, вопросе, результате
+      и отчёте (Tailwind собирается в статический CSS, HTMX — со своего домена)
+- [x] `docs/LAUNCH_CHECKLIST.md` — всё, что нужно от владельца до запуска
 
 **Готово, когда:** выполнены все пункты SPEC §9, кроме тех, что зависят от владельца
 (лицензионные тексты, юридические тексты, боевой магазин ЮKassa).

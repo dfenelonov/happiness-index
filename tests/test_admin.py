@@ -410,3 +410,13 @@ def test_created_at_filter_uses_session_date(app: FastAPI) -> None:
         db.commit()
         assert len(load_facts(db, Filters(date_from=date.today() - timedelta(days=7)))) == 0
         assert len(load_facts(db, Filters())) == 1
+
+
+def test_seed_can_run_twice(app: FastAPI) -> None:
+    import random
+
+    from scripts.seed_demo import seed
+
+    seed(app, 300, random.Random(1))
+    seed(app, 300, random.Random(1))  # повторный запуск на непустой базе не падает
+    assert len(db_rows(app, Session)) == 600

@@ -6,10 +6,10 @@
   <title>{% block title %}{{ app_config.site_name }}{% endblock %}</title>
   <meta name="description" content="{% block description %}{{ app_config.landing.subheadline }}{% endblock %}">
   {% block og %}{% endblock %}
-  <script src="https://cdn.tailwindcss.com/3.4.16"></script>
+  <link rel="stylesheet" href="/static/app.css?v={{ asset_version }}">
   {# HTMX 2 по умолчанию не вставляет ответы 4xx/5xx — а ошибки форм (422) и «попробуй позже» (503) нужно показать. #}
   <meta name="htmx-config" content='{"responseHandling":[{"code":"204","swap":false},{"code":"[23]..","swap":true},{"code":"422","swap":true},{"code":"503","swap":true},{"code":"[45]..","swap":false,"error":true}]}'>
-  <script src="https://unpkg.com/htmx.org@2.0.4/dist/htmx.min.js" defer></script>
+  <script src="/static/vendor/htmx-2.0.4.min.js" defer></script>
 </head>
 <body class="min-h-screen bg-amber-50 text-stone-800 antialiased"{% if metrika_id %} data-metrika-id="{{ metrika_id }}"{% endif %}>
   <main class="mx-auto max-w-md px-4 pb-10 pt-6">
@@ -21,6 +21,7 @@
       <a class="underline" href="/privacy">Политика ПДн</a>
       <a class="underline" href="/consent">Согласие</a>
       <a class="underline" href="/cookies">Cookie</a>
+      <a class="underline" href="/about-method">О методике</a>
     </nav>
     <p>Не является медицинской услугой и не заменяет консультацию специалиста.</p>
   </footer>
@@ -33,12 +34,12 @@
         <a class="underline" href="/cookies">Подробнее</a>
       </p>
       <div class="mt-3 flex gap-3">
-        <button type="button" data-cookie-choice="yes" class="min-h-[44px] flex-1 rounded-xl bg-amber-500 font-semibold text-white">Принять</button>
+        <button type="button" data-cookie-choice="yes" class="min-h-[44px] flex-1 rounded-xl bg-amber-400 font-semibold text-stone-900">Принять</button>
         <button type="button" data-cookie-choice="no" class="min-h-[44px] flex-1 rounded-xl border border-stone-300 font-semibold text-stone-700">Отказаться</button>
       </div>
     </div>
   </div>
   {% endif %}
-  <script src="/static/app.js" defer></script>
+  <script src="/static/app.js?v={{ asset_version }}" defer></script>
 </body>
 </html>

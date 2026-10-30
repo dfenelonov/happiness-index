@@ -37,6 +37,13 @@ SAFE_SECRETS = {
 }
 
 
+@pytest.fixture(autouse=True)
+def _isolate_env(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Переменные окружения разработчика (APP_BASE_URL, LLM_PROVIDER…) не должны влиять на тесты."""
+    for name in Settings.model_fields:
+        monkeypatch.delenv(name.upper(), raising=False)
+
+
 def make_settings(tmp_path: Path, **overrides: Any) -> Settings:
     values: dict[str, Any] = {
         "app_env": "development",

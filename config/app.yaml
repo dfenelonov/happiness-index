@@ -89,3 +89,10 @@ metrics:
   subscription_interest: {go: 0.05, stop: null} # sub_fakedoor_click / payment_success
   ci_z: 1.96
 
+rate_limits:
+  # Запросов в минуту с одного IP (SPEC §8). Тест — 30 вопросов за 5–7 минут, запас большой.
+  answers: 60
+  checkout: 10
+  lead: 10
+  events: 120
+

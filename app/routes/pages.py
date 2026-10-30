@@ -76,6 +76,13 @@ def landing_og(request: Request) -> FileResponse:
     )
 
 
+@router.get("/about-method", response_class=HTMLResponse)
+def about_method(request: Request):
+    """Авторы и источники шкал (docs/LEGAL.md, «Методики») — из questionnaire.yaml."""
+    blocks = [b for b in request.app.state.questionnaire.blocks if b.source]
+    return render(request, "about_method.html", {"blocks": blocks})
+
+
 def _legal_page(slug: str, title: str):
     def page(request: Request):
         return render(request, "legal_stub.html", {"title": title, "slug": slug})

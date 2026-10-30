@@ -1,15 +1,16 @@
-from fastapi import APIRouter, HTTPException, Request, Response
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
 
 from app.db.session import Db
 from app.services.events import log_event, validate_client_event
 from app.services.orders import price_for
+from app.services.rate_limit import rate_limit
 from app.services.results import result_of
 from app.services.sessions import get_session
 
 router = APIRouter()
 
 
-@router.post("/api/events", status_code=204)
+@router.post("/api/events", status_code=204, dependencies=[Depends(rate_limit("events"))])
 async def client_event(request: Request, db: Db) -> Response:
     try:
         payload = await request.json()

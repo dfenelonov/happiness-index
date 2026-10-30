@@ -1,6 +1,6 @@
 """Согласие и прохождение теста: вопрос на экран, HTMX, «назад», продолжение по cookie."""
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse
 from sqlalchemy.orm import Session as DbSession
 
@@ -8,6 +8,7 @@ from app.db.models import Session
 from app.db.session import Db
 from app.scoring import ScoringError
 from app.services.events import log_event, log_event_once
+from app.services.rate_limit import rate_limit
 from app.services.results import complete, result_of, save_answer, stored_answers
 from app.services.sessions import ensure_session, get_session, give_consent, set_sid_cookie
 from app.services.test_flow import AnswerError, TestFlow
@@ -84,7 +85,9 @@ async def consent(request: Request, db: Db):
     return response
 
 
-@router.post("/api/answers", response_class=HTMLResponse)
+@router.post(
+    "/api/answers", response_class=HTMLResponse, dependencies=[Depends(rate_limit("answers"))]
+)
 async def answer(request: Request, db: Db):
     session = _active_session(request, db)
     if session is None:

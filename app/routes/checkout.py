@@ -3,7 +3,7 @@
 import logging
 from decimal import Decimal
 
-from fastapi import APIRouter, HTTPException, Request, Response
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from fastapi.responses import HTMLResponse
 from sqlalchemy import select
 
@@ -19,6 +19,7 @@ from app.services.orders import (
     sync_order,
 )
 from app.services.payments import MockGateway, PaymentError, webhook_ip_allowed
+from app.services.rate_limit import rate_limit
 from app.services.results import result_of
 from app.services.sessions import get_session, mark_internal
 from app.web import is_htmx, redirect, render
@@ -40,7 +41,7 @@ def _paywall_error(request: Request, db: Db, result, session, error: str, email:
     return render(request, template, context, status)
 
 
-@router.post("/checkout")
+@router.post("/checkout", dependencies=[Depends(rate_limit("checkout"))])
 async def checkout(request: Request, db: Db):
     session = get_session(db, request, request.app.state.settings)
     result = result_of(db, session) if session and session.consent_at else None

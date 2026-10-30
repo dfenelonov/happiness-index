@@ -21,6 +21,7 @@ def render(request: Request, name: str, context: dict[str, Any] | None = None, s
         "base_url": settings.app_base_url.rstrip("/"),
         "metrika_id": settings.yandex_metrika_id,
         "cookie_choice": request.cookies.get(COOKIE_CHOICE),
+        "asset_version": request.app.state.asset_version,
     }
     return templates.TemplateResponse(request, name, base | (context or {}), status_code=status)
 

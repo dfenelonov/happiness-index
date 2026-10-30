@@ -18,7 +18,7 @@
   <p class="text-sm font-semibold uppercase tracking-wide text-amber-700">{{ app_config.site_name }}</p>
   <h1 class="mt-3 text-3xl font-bold leading-tight text-stone-900">{{ app_config.headline }}</h1>
   <p class="mt-4 text-lg text-stone-600">{{ app_config.landing.subheadline }}</p>
-  <a href="/test" class="mt-8 flex min-h-[52px] w-full items-center justify-center rounded-2xl bg-amber-500 px-6 text-lg font-semibold text-white shadow-sm active:bg-amber-600">Узнать свой индекс</a>
+  <a href="/test" class="mt-8 flex min-h-[52px] w-full items-center justify-center rounded-2xl bg-amber-400 px-6 text-lg font-semibold text-stone-900 shadow-sm active:bg-amber-500">Узнать свой индекс</a>
   <p class="mt-4 text-sm text-stone-500">
     {{ (country.share_happy * 100) | round | int }}% россиян считают себя счастливыми —
     <a class="underline" href="{{ country.source_url }}" rel="noopener" target="_blank">{{ country.source_name }}</a>, {{ country.period }}.
@@ -48,7 +48,8 @@
   <p class="mt-3 text-stone-600">
     Тест собран из признанных психологических шкал, которыми пользуются исследователи благополучия
     по всему миру, и наших вопросов о повседневной жизни. Он анонимный: без имени, почты и регистрации.
+    <a class="underline" href="/about-method">Подробнее о методике</a>
   </p>
-  <a href="/test" class="mt-6 flex min-h-[52px] w-full items-center justify-center rounded-2xl bg-amber-500 px-6 text-lg font-semibold text-white shadow-sm active:bg-amber-600">Пройти тест</a>
+  <a href="/test" class="mt-6 flex min-h-[52px] w-full items-center justify-center rounded-2xl bg-amber-400 px-6 text-lg font-semibold text-stone-900 shadow-sm active:bg-amber-500">Пройти тест</a>
 </section>
 {% endblock %}

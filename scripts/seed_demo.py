@@ -115,7 +115,7 @@ def seed(app, sessions: int, rng: random.Random) -> dict[str, int]:
             "email_encrypted": cipher.encrypt(email),
             "email_hash": cipher.hash(email),
             "created_at": at,
-            "yookassa_payment_id": f"seed-{n}",
+            "yookassa_payment_id": f"seed-{uuid.uuid4().hex}",
         }
         rows["orders"].append(order)
         event(sid, "checkout_start", at, price=price)

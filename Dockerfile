@@ -18,4 +18,7 @@ COPY . .
 EXPOSE 8000
 
 # Миграции применяются при каждом старте контейнера, затем поднимается приложение.
-CMD ["sh", "-c", "alembic upgrade head && exec uvicorn app.main:app --host 0.0.0.0 --port 8000"]
+# Один процесс: очередь отчётов и лимиты — в памяти процесса (docs/DEPLOY.md).
+# --no-access-log: свой access-лог без IP и токенов (app/access_log.py).
+# --proxy-headers: реальный IP клиента за прокси (лимиты, проверка IP вебхука ЮKassa).
+CMD ["sh", "-c", "alembic upgrade head && exec uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 1 --no-access-log --proxy-headers --forwarded-allow-ips=${FORWARDED_ALLOW_IPS:-127.0.0.1}"]

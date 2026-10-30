@@ -551,6 +551,7 @@ class AppConfig(_Strict):
     support_contacts: list[SupportContact] = Field(min_length=1)
     report: ReportSettings
     metrics: MetricsConfig
+    rate_limits: dict[Literal["answers", "checkout", "lead", "events"], int]
 
     @model_validator(mode="after")
     def _check(self) -> AppConfig:

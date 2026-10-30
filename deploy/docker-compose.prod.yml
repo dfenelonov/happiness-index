@@ -1,0 +1,65 @@
+# Production в Yandex Cloud: VM + Managed PostgreSQL (DATABASE_URL в .env). См. docs/DEPLOY.md.
+#   docker compose -f deploy/docker-compose.prod.yml --env-file .env up -d --build
+services:
+  app:
+    build: ..
+    env_file: ../.env
+    environment:
+      APP_ENV: production
+      # Порт приложения наружу не публикуется — к нему ходит только caddy из этой сети.
+      FORWARDED_ALLOW_IPS: "*"
+    restart: unless-stopped
+    volumes:
+      - cache:/app/var/cache
+      - ../certs:/app/certs:ro   # корневой сертификат Managed PostgreSQL (sslrootcert)
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/healthz')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  caddy:
+    image: caddy:2.8-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      DOMAIN: ${DOMAIN:?укажи DOMAIN в .env}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+    depends_on:
+      - app
+
+  # Перегенерация fallback/failed-отчётов каждые 15 минут (docs/LLM_REPORT.md, Fallback).
+  scheduler:
+    build: ..
+    env_file: ../.env
+    environment:
+      APP_ENV: production
+    restart: unless-stopped
+    command: ["sh", "-c", "while true; do python scripts/regenerate_reports.py; sleep 900; done"]
+    volumes:
+      - ../certs:/app/certs:ro
+    depends_on:
+      - app
+
+  # Ежедневный pg_dump поверх автоматических бэкапов Managed PostgreSQL.
+  backup:
+    image: postgres:16-alpine
+    env_file: ../.env
+    environment:
+      BACKUP_DIR: /backups
+      BACKUP_KEEP_DAYS: "14"
+    restart: unless-stopped
+    volumes:
+      - ../scripts/backup_db.sh:/backup_db.sh:ro
+      - ../certs:/app/certs:ro
+      - backups:/backups
+    command: ["sh", "-c", "while true; do sh /backup_db.sh; sleep 86400; done"]
+
+volumes:
+  cache:
+  caddy_data:
+  backups:

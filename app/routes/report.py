@@ -2,7 +2,7 @@
 
 from datetime import UTC, datetime
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse, Response
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
@@ -12,6 +12,7 @@ from app.db.session import Db
 from app.services.crypto import normalize_email
 from app.services.events import log_event
 from app.services.pdf import render_report_pdf
+from app.services.rate_limit import rate_limit
 from app.services.reports import domain_names
 from app.web import is_htmx, render
 
@@ -102,7 +103,7 @@ def tracker_click(token: str, request: Request, db: Db):
     return _tracker(request, "form", report)
 
 
-@router.post("/lead", response_class=HTMLResponse)
+@router.post("/lead", response_class=HTMLResponse, dependencies=[Depends(rate_limit("lead"))])
 async def lead(request: Request, db: Db):
     form = await request.form()
     report = _report_or_404(db, str(form.get("token", "")))

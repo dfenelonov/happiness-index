@@ -3,7 +3,7 @@
     <span>Вопрос {{ question.number }} из {{ question.total }}</span>
     <span>{{ question.block.title }}</span>
   </div>
-  <div class="mt-2 h-2 w-full overflow-hidden rounded-full bg-amber-100" role="progressbar"
+  <div class="mt-2 h-2 w-full overflow-hidden rounded-full bg-amber-100" role="progressbar" aria-label="Прогресс теста"
        aria-valuemin="0" aria-valuemax="{{ question.total }}" aria-valuenow="{{ question.index }}">
     <div class="h-full rounded-full bg-amber-500 transition-all" style="width: {{ question.progress_percent }}%"></div>
   </div>

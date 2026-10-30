@@ -7,7 +7,7 @@
 
   {% if state == "card" %}
   <form method="post" action="/report/{{ report.token }}/tracker" hx-post="/report/{{ report.token }}/tracker" hx-target="#tracker" hx-swap="outerHTML">
-    <button type="submit" class="mt-5 flex min-h-[52px] w-full items-center justify-center rounded-2xl bg-amber-500 px-6 text-lg font-semibold text-white">Хочу</button>
+    <button type="submit" class="mt-5 flex min-h-[52px] w-full items-center justify-center rounded-2xl bg-amber-400 px-6 text-lg font-semibold text-stone-900">Хочу</button>
   </form>
 
   {% elif state == "form" %}
@@ -26,7 +26,7 @@
           <a class="underline" href="/privacy" target="_blank">политике</a></span>
       </label>
       {% if error %}<p class="mt-3 text-sm font-medium text-rose-700" role="alert">{{ error }}</p>{% endif %}
-      <button type="submit" class="mt-5 flex min-h-[52px] w-full items-center justify-center rounded-2xl bg-amber-500 px-6 text-lg font-semibold text-white">Пришлите приглашение</button>
+      <button type="submit" class="mt-5 flex min-h-[52px] w-full items-center justify-center rounded-2xl bg-amber-400 px-6 text-lg font-semibold text-stone-900">Пришлите приглашение</button>
       <a href="/report/{{ report.token }}" class="mt-3 block text-center text-sm text-stone-500 underline">Не сейчас</a>
     </form>
   </div>
