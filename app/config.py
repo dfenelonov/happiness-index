@@ -62,6 +62,7 @@ class Settings(BaseSettings):
     yandex_metrika_id: str = Field("", pattern=r"^\d*$")  # только цифры счётчика
     admin_user: str = "admin"
     admin_password: str = "change-me"
+    internal_link_token: str = ""  # секрет ссылки /internal/<токен>; пусто — ссылка выключена
 
     report_jobs_sync: bool = False  # генерация отчёта в потоке запроса — только тесты и скрипты
 
@@ -451,19 +452,42 @@ class Payments(_Strict):
 
 class ReportModel(_Strict):
     model: str
-    price_rub_per_1k_input: float | None = Field(None, ge=0)
-    price_rub_per_1k_output: float | None = Field(None, ge=0)
 
-    def cost_rub(self, tokens_in: int, tokens_out: int) -> float | None:
-        if self.price_rub_per_1k_input is None or self.price_rub_per_1k_output is None:
+
+class TokenPrice(_Strict):
+    """Цена за 1000 токенов."""
+
+    input: float = Field(ge=0)
+    output: float = Field(ge=0)
+    currency: Literal["RUB", "USD"]
+    vat_included: bool
+
+
+class TokenPricing(_Strict):
+    usd_rub: float | None = Field(None, gt=0)
+    vat_rate: float | None = Field(None, ge=0, le=1)
+    prices: dict[str, TokenPrice]
+
+    def cost_rub(self, model: str, tokens_in: int, tokens_out: int) -> float | None:
+        """Стоимость в ₽ с НДС; None — цена модели, курс или НДС не заданы."""
+        price = self.prices.get(model)
+        if price is None:
             return None
-        return (
-            tokens_in * self.price_rub_per_1k_input + tokens_out * self.price_rub_per_1k_output
-        ) / 1000
+        cost = (tokens_in * price.input + tokens_out * price.output) / 1000
+        if price.currency == "USD":
+            if self.usd_rub is None:
+                return None
+            cost *= self.usd_rub
+        if not price.vat_included:
+            if self.vat_rate is None:
+                return None
+            cost *= 1 + self.vat_rate
+        return cost
 
 
 class ReportSettings(_Strict):
     models: dict[Literal["yandexgpt", "gigachat"], ReportModel]
+    token_pricing: TokenPricing
     temperature: float = Field(ge=0, le=1)
     max_output_tokens: int = Field(gt=0)
     max_attempts: int = Field(ge=1, le=5)
@@ -471,6 +495,35 @@ class ReportSettings(_Strict):
     deadline_seconds: float = Field(gt=0)
     budget_rub_per_report: float = Field(gt=0)
     low_index_threshold: int = Field(ge=0, le=100)
+
+    @model_validator(mode="after")
+    def _check(self) -> ReportSettings:
+        if missing := {m.model for m in self.models.values()} - set(self.token_pricing.prices):
+            raise ValueError(f"report.token_pricing.prices: нет цены для {sorted(missing)}")
+        return self
+
+    def cost_rub(self, provider: str, tokens_in: int, tokens_out: int) -> float | None:
+        model = self.models.get(provider)  # type: ignore[call-overload]
+        return self.token_pricing.cost_rub(model.model, tokens_in, tokens_out) if model else None
+
+
+class Threshold(_Strict):
+    go: float = Field(gt=0, lt=1)
+    stop: float | None = Field(None, gt=0, lt=1)
+
+    @model_validator(mode="after")
+    def _check(self) -> Threshold:
+        if self.stop is not None and self.stop >= self.go:
+            raise ValueError("порог stop должен быть ниже go")
+        return self
+
+
+class MetricsConfig(_Strict):
+    completion: Threshold
+    share: Threshold
+    conversion: Threshold
+    subscription_interest: Threshold
+    ci_z: float = Field(gt=0)
 
 
 class AppConfig(_Strict):
@@ -485,6 +538,7 @@ class AppConfig(_Strict):
     percentile: Percentile
     support_contacts: list[SupportContact] = Field(min_length=1)
     report: ReportSettings
+    metrics: MetricsConfig
 
     @model_validator(mode="after")
     def _check(self) -> AppConfig:

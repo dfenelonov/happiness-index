@@ -1,13 +1,21 @@
+import secrets
 from urllib.parse import urlparse
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import FileResponse, HTMLResponse
 
 from app.db.session import Db
 from app.services.cards import cached_png, landing_og_path, render_landing_og
 from app.services.events import log_event
-from app.services.sessions import REF_PATTERN, UTM_KEYS, ensure_session, set_sid_cookie
-from app.web import render
+from app.services.sessions import (
+    REF_PATTERN,
+    UTM_KEYS,
+    ensure_session,
+    mark_internal,
+    set_internal_cookie,
+    set_sid_cookie,
+)
+from app.web import redirect, render
 
 router = APIRouter()
 
@@ -31,6 +39,22 @@ def landing(request: Request, db: Db):
     )
     response = render(request, "landing.html")
     set_sid_cookie(response, sid, request.app.state.settings)
+    return response
+
+
+@router.get("/internal/{token}")
+def internal_link(token: str, request: Request, db: Db):
+    """Секретная ссылка для команды: браузер помечается как внутренний (cookie internal=1),
+    его сессии не попадают в метрики админки по умолчанию."""
+    settings = request.app.state.settings
+    expected = settings.internal_link_token
+    if not expected or not secrets.compare_digest(token.encode(), expected.encode()):
+        raise HTTPException(404)
+    session, sid = ensure_session(db, request, settings)
+    mark_internal(db, session)
+    response = redirect(request, "/")
+    set_sid_cookie(response, sid, settings)
+    set_internal_cookie(response, settings)
     return response
 
 

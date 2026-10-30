@@ -41,6 +41,21 @@ MAIL_TEXT = """Привет!
 """
 
 
+READY_SUBJECT = "Твой персональный отчёт готов"
+READY_TEXT = """Привет!
+
+Твой персональный отчёт «Индекс счастья» готов. Он доступен по той же ссылке:
+
+{url}
+
+Если отчёт не понравится, мы вернём деньги в течение {refund_days} дней —
+просто ответь на это письмо.
+
+{site_name}
+Не является медицинской услугой и не заменяет консультацию специалиста.
+"""
+
+
 @dataclass
 class ReportService:
     session_factory: sessionmaker[DbSession]
@@ -103,10 +118,14 @@ class ReportService:
 
     def regenerate(self, db: DbSession, report: Report) -> bool:
         """Повторная попытка для fallback/failed. True — отчёт стал ready."""
-        gen = self._generate(db, db.get(Order, report.order_id))
+        order = db.get(Order, report.order_id)
+        gen = self._generate(db, order)
         if gen.status != "ready":
             return False
         self._apply(db, report, gen)
+        report.regenerated_at = datetime.now(UTC)
+        db.commit()
+        self._send(order, report, READY_SUBJECT, READY_TEXT)
         return True
 
     def _generate(self, db: DbSession, order: Order) -> Generation:
@@ -117,7 +136,6 @@ class ReportService:
         )
 
     def _apply(self, db: DbSession, report: Report, gen: Generation) -> None:
-        model = self.app_config.report.models.get(gen.provider)  # type: ignore[call-overload]
         report.content_json = gen.content
         report.status = gen.status
         report.provider = gen.provider
@@ -125,7 +143,9 @@ class ReportService:
         report.tokens_in = gen.tokens_in
         report.tokens_out = gen.tokens_out
         report.attempts = len(gen.attempts)
-        report.cost_rub = model.cost_rub(gen.tokens_in, gen.tokens_out) if model else None
+        report.cost_rub = self.app_config.report.cost_rub(
+            gen.provider, gen.tokens_in, gen.tokens_out
+        )
         report.generated_at = datetime.now(UTC)
         db.commit()
         cost = "—" if report.cost_rub is None else f"{report.cost_rub:.2f}"
@@ -134,16 +154,20 @@ class ReportService:
     def _send_link(self, db: DbSession, report: Report, order: Order) -> None:
         if report.email_sent_at is not None:
             return
-        text = MAIL_TEXT.format(
+        if self._send(order, report, MAIL_SUBJECT, MAIL_TEXT):
+            report.email_sent_at = datetime.now(UTC)
+            db.commit()
+
+    def _send(self, order: Order, report: Report, subject: str, template: str) -> bool:
+        text = template.format(
             url=self.report_url(report),
             refund_days=self.app_config.pricing.refund_days,
             site_name=self.app_config.site_name,
         )
         try:
-            self.mailer.send(Mail(self.cipher.decrypt(order.email_encrypted), MAIL_SUBJECT, text))
+            self.mailer.send(Mail(self.cipher.decrypt(order.email_encrypted), subject, text))
         except Exception:
-            # Отчёт всё равно доступен со страницы возврата; письмо можно переотправить.
-            log.warning("письмо со ссылкой на отчёт не отправлено (заказ %s)", order.id)
-            return
-        report.email_sent_at = datetime.now(UTC)
-        db.commit()
+            # Отчёт всё равно доступен по ссылке; письмо можно переотправить.
+            log.warning("письмо «%s» не отправлено (заказ %s)", subject, order.id)
+            return False
+        return True

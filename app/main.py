@@ -17,7 +17,7 @@ from app.config import (
     load_configs,
 )
 from app.db.session import create_db_engine, make_session_factory
-from app.routes import checkout, events, health, pages, report, results, test
+from app.routes import admin, checkout, events, health, pages, report, results, test
 from app.services.crypto import EmailCipher
 from app.services.llm import make_llm_provider
 from app.services.mailer import make_mailer
@@ -89,7 +89,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     )
 
     app.mount("/static", StaticFiles(directory=APP_DIR / "static"), name="static")
-    for module in (health, pages, test, results, events, checkout, report):
+    for module in (health, pages, test, results, events, checkout, report, admin):
         app.include_router(module.router)
 
     @app.exception_handler(StarletteHTTPException)

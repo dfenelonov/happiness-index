@@ -21,7 +21,9 @@ def db_rows(app: FastAPI, model):
 
 def consent(client: TestClient, query: str = "") -> None:
     client.get(f"/{query}")
-    assert client.post("/consent", data={"agree": "yes"}).status_code == 303
+    r = client.post("/consent", data={"agree": "yes"})
+    assert r.status_code == 303
+    client.get(r.headers["location"])  # как браузер: после согласия — первый вопрос (test_start)
 
 
 def answers_for(swls: int = 4, screening: tuple[int, int, int, int] = (0, 0, 0, 0)) -> dict:

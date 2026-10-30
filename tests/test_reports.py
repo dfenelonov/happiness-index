@@ -265,12 +265,42 @@ def test_attempt_timeout_respects_deadline() -> None:
     assert seen == [10.0]  # осталось 10 с из 55 — меньше, чем 25 на попытку
 
 
-def test_cost_calculation() -> None:
-    model = REPORT_CFG.models["yandexgpt"].model_copy(
-        update={"price_rub_per_1k_input": 1.2, "price_rub_per_1k_output": 1.2}
+@pytest.mark.parametrize(
+    ("model", "usd_rub", "vat", "expected"),
+    [
+        ("GigaChat-Pro", None, None, 1.5),  # 3000 токенов × 0,5 ₽, НДС уже в цене
+        ("GigaChat-Max", None, None, 1.95),
+        ("yandexgpt/latest", 100.0, 0.2, 3 * 0.0066 * 100 * 1.2),  # $ без НДС → ₽ с НДС
+        ("yandexgpt/latest", None, 0.2, None),  # нет курса
+        ("yandexgpt/latest", 100.0, None, None),  # нет НДС
+        ("unknown-model", 100.0, 0.2, None),
+    ],
+)
+def test_token_cost(model, usd_rub, vat, expected) -> None:
+    pricing = REPORT_CFG.token_pricing.model_copy(update={"usd_rub": usd_rub, "vat_rate": vat})
+    cost = pricing.cost_rub(model, 1000, 2000)
+    assert cost == (None if expected is None else pytest.approx(expected))
+
+
+def test_reference_prices_from_owner() -> None:
+    prices = REPORT_CFG.token_pricing.prices
+    assert (prices["GigaChat-Pro"].input, prices["GigaChat-Max"].output) == (0.5, 0.65)
+    assert (
+        prices["yandexgpt/latest"].currency == "USD" and not prices["yandexgpt/latest"].vat_included
     )
-    assert model.cost_rub(1000, 2000) == pytest.approx(3.6)
-    assert REPORT_CFG.models["yandexgpt"].cost_rub(1000, 2000) is None  # цены не заданы
+    assert REPORT_CFG.cost_rub("gigachat", 1000, 1000) == pytest.approx(1.0)
+    assert REPORT_CFG.cost_rub("mock", 1000, 1000) is None
+
+
+def test_model_without_price_rejected(config_dir) -> None:
+    from tests.conftest import edit_yaml
+
+    edit_yaml(
+        config_dir / "app.yaml",
+        lambda d: d["report"]["models"]["gigachat"].update(model="GigaChat"),
+    )
+    with pytest.raises(ConfigError, match="нет цены"):
+        load_configs(config_dir)
 
 
 # --- HTTP-адаптеры провайдеров (без сети) --------------------------------------------------------
@@ -471,7 +501,13 @@ def test_llm_down_gives_fallback_then_regenerated(client: TestClient, app: FastA
 
     service(app).provider = MockLLMProvider()
     assert regenerate_all(service(app)) == (1, 1)
-    assert report_of(app).status == "ready" and len(service(app).mailer.outbox) == 1
+    report = report_of(app)
+    assert report.status == "ready" and report.regenerated_at is not None
+    _link_mail, ready_mail = service(app).mailer.outbox
+    assert ready_mail.subject == "Твой персональный отчёт готов" and ready_mail.to == EMAIL
+    assert f"/report/{report.token}" in ready_mail.text
+    assert regenerate_all(service(app)) == (0, 0)  # повторный запуск — писем больше нет
+    assert len(service(app).mailer.outbox) == 2
 
 
 def test_pending_and_failed_pages(client: TestClient, app: FastAPI) -> None:

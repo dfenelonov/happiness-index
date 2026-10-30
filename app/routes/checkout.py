@@ -20,7 +20,7 @@ from app.services.orders import (
 )
 from app.services.payments import MockGateway, PaymentError, webhook_ip_allowed
 from app.services.results import result_of
-from app.services.sessions import get_session
+from app.services.sessions import get_session, mark_internal
 from app.web import is_htmx, redirect, render
 
 log = logging.getLogger(__name__)
@@ -62,6 +62,8 @@ async def checkout(request: Request, db: Db):
         return _paywall_error(request, db, result, session, error, raw_email, 422)
 
     base_url = request.app.state.settings.app_base_url.rstrip("/")
+    if request.app.state.payment_gateway.is_mock:
+        mark_internal(db, session)  # мок-оплата — не настоящий покупатель
     try:
         url = start_checkout(
             db,

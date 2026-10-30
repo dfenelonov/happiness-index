@@ -1,0 +1,37 @@
+{# Фейковая дверь (SPEC §3.6): меряем интерес к подписке, оплаты нет. #}
+{% set door = app_config.fake_door %}
+<section id="tracker" class="mt-4 rounded-3xl border-2 border-amber-300 bg-amber-50 p-6">
+  <p class="text-sm font-semibold uppercase tracking-wide text-amber-700">Скоро</p>
+  <h2 class="mt-1 text-xl font-bold text-stone-900">{{ door.name }}</h2>
+  <p class="mt-2 text-stone-700">Замеряй индекс каждый месяц и смотри динамику. {{ door.price_rub_month }} ₽/мес</p>
+
+  {% if state == "card" %}
+  <form method="post" action="/report/{{ report.token }}/tracker" hx-post="/report/{{ report.token }}/tracker" hx-target="#tracker" hx-swap="outerHTML">
+    <button type="submit" class="mt-5 flex min-h-[52px] w-full items-center justify-center rounded-2xl bg-amber-500 px-6 text-lg font-semibold text-white">Хочу</button>
+  </form>
+
+  {% elif state == "form" %}
+  <div class="fixed inset-0 z-40 flex items-end justify-center bg-stone-900/40 p-4 sm:items-center" role="dialog" aria-modal="true" aria-labelledby="tracker-title">
+    <form method="post" action="/lead" hx-post="/lead" hx-target="#tracker" hx-swap="outerHTML"
+          class="w-full max-w-md rounded-3xl bg-white p-6 shadow-xl">
+      <h3 id="tracker-title" class="text-lg font-bold text-stone-900">Мы запускаем трекер в ближайшие недели</h3>
+      <p class="mt-2 text-stone-600">Оставь email — пришлём приглашение со скидкой.</p>
+      <input type="hidden" name="token" value="{{ report.token }}">
+      <input type="email" name="email" required autocomplete="email" inputmode="email" value="{{ email or '' }}"
+             placeholder="you@example.ru" aria-label="Email"
+             class="mt-4 block min-h-[48px] w-full rounded-xl border border-stone-300 px-4 text-base">
+      <label class="mt-4 flex items-start gap-3">
+        <input type="checkbox" name="agree" value="yes" class="mt-1 h-5 w-5 shrink-0 accent-amber-500">
+        <span class="text-sm text-stone-700">Согласен получить письмо о запуске трекера и на обработку email по
+          <a class="underline" href="/privacy" target="_blank">политике</a></span>
+      </label>
+      {% if error %}<p class="mt-3 text-sm font-medium text-rose-700" role="alert">{{ error }}</p>{% endif %}
+      <button type="submit" class="mt-5 flex min-h-[52px] w-full items-center justify-center rounded-2xl bg-amber-500 px-6 text-lg font-semibold text-white">Пришлите приглашение</button>
+      <a href="/report/{{ report.token }}" class="mt-3 block text-center text-sm text-stone-500 underline">Не сейчас</a>
+    </form>
+  </div>
+
+  {% else %}
+  <p class="mt-5 rounded-2xl bg-white p-4 font-semibold text-stone-900" role="status">Спасибо! Пришлём приглашение, как только трекер заработает.</p>
+  {% endif %}
+</section>

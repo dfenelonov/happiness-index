@@ -51,7 +51,11 @@ uv run ruff check . && uv run ruff format .
 curl localhost:8000/healthz
 uv run python scripts/eval_reports.py --provider mock   # оценка отчётов → runs/report_eval/
 uv run python scripts/regenerate_reports.py             # перегенерация fallback-отчётов
+uv run python scripts/seed_demo.py --sessions 4000      # демо-данные для /admin (не в production)
 ```
+
+`/admin` — basic auth (`ADMIN_USER` / `ADMIN_PASSWORD`). Свои браузеры команды помечай ссылкой
+`/internal/<INTERNAL_LINK_TOKEN>`: такие сессии, dev-окружение и мок-оплаты не входят в метрики.
 
 Без ключей ЮKassa и LLM (вне production) работают моки: оплата — страница `/dev/yookassa/{id}`,
 отчёт — `MockLLMProvider`, письма — dev-outbox в памяти.

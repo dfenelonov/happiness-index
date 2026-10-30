@@ -15,9 +15,11 @@ from sqlalchemy import (
     Integer,
     String,
     Text,
+    UniqueConstraint,
     Uuid,
     func,
 )
+from sqlalchemy import false as sa_false
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base, JsonType
@@ -44,6 +46,10 @@ class Session(Base):
     price_variant: Mapped[int | None] = mapped_column(Integer)
     consent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     consent_version: Mapped[str | None] = mapped_column(String(32))
+    # Внутренние сессии (dev, мок-платежи, cookie internal=1) по умолчанию не входят в метрики.
+    is_internal: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=sa_false()
+    )
 
 
 class Answer(Base):
@@ -125,10 +131,12 @@ class Report(Base):
     created_at: Mapped[datetime] = _created_at()
     generated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     email_sent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    regenerated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class Lead(Base):
     __tablename__ = "leads"
+    __table_args__ = (UniqueConstraint("email_hash", "source", name="uq_leads_email_hash_source"),)
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
     email_encrypted: Mapped[str] = mapped_column(Text, nullable=False)  # Fernet-токен

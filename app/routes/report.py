@@ -1,18 +1,23 @@
-"""Платный отчёт по секретной ссылке: /report/{token} и PDF. SPEC §3.6."""
+"""Платный отчёт по секретной ссылке: /report/{token} и PDF, фейковая дверь. SPEC §3.6."""
+
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import HTMLResponse, Response
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 
-from app.db.models import Order, Report, Result, Session
+from app.db.models import Lead, Order, Report, Result, Session
 from app.db.session import Db
+from app.services.crypto import normalize_email
 from app.services.events import log_event
 from app.services.pdf import render_report_pdf
 from app.services.reports import domain_names
-from app.web import render
+from app.web import is_htmx, render
 
 router = APIRouter()
 READY = ("ready", "fallback")
+FAKE_DOOR_SOURCE = "sub_fakedoor"
 
 
 def _report_or_404(db: Db, token: str) -> Report:
@@ -69,3 +74,60 @@ def report_page(token: str, request: Request, db: Db):
             "domain_names": domain_names(q),
         },
     )
+
+
+# --- Фейковая дверь «Трекер счастья» (SPEC §3.6) -------------------------------------------------
+# События пишутся в сессию покупателя через токен отчёта: отчёт часто открывают по ссылке из письма
+# на другом устройстве, где cookie покупателя нет.
+
+
+def _buyer_session(db: Db, report: Report) -> Session:
+    result = _result(db, report)
+    if result.screening_flag:  # защитный контур: таким людям не продаём и не собираем email
+        raise HTTPException(404)
+    return db.get(Session, result.session_id)
+
+
+def _tracker(request: Request, state: str, report: Report, status: int = 200, **context):
+    context = {"state": state, "report": report, **context}
+    if is_htmx(request):
+        return render(request, "_tracker.html", context, status)
+    return render(request, "tracker_page.html", context, status)
+
+
+@router.post("/report/{token}/tracker", response_class=HTMLResponse)
+def tracker_click(token: str, request: Request, db: Db):
+    report = _report_or_404(db, token)
+    log_event(db, _buyer_session(db, report), "sub_fakedoor_click")
+    return _tracker(request, "form", report)
+
+
+@router.post("/lead", response_class=HTMLResponse)
+async def lead(request: Request, db: Db):
+    form = await request.form()
+    report = _report_or_404(db, str(form.get("token", "")))
+    session = _buyer_session(db, report)
+    raw_email = str(form.get("email", ""))
+    email = normalize_email(raw_email)
+    if email is None:
+        return _tracker(request, "form", report, error="Проверь email", email=raw_email, status=422)
+    if form.get("agree") != "yes":
+        error = "Отметь согласие, чтобы мы могли написать"
+        return _tracker(request, "form", report, error=error, email=raw_email, status=422)
+    cipher = request.app.state.email_cipher
+    db.add(
+        Lead(
+            email_encrypted=cipher.encrypt(email),
+            email_hash=cipher.hash(email),
+            source=FAKE_DOOR_SOURCE,
+            session_id=session.id,
+            consent_at=datetime.now(UTC),
+        )
+    )
+    try:
+        db.commit()
+    except IntegrityError:  # этот email уже оставлен — второй строки и события не будет
+        db.rollback()
+    else:
+        log_event(db, session, "sub_email_submit")
+    return _tracker(request, "thanks", report)

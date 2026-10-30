@@ -77,8 +77,7 @@ def build_profile_input(q, profile: dict[str, Any]) -> dict[str, Any]:
 
 def row_for(profile, data, gen: Generation, report_cfg) -> dict[str, Any]:
     low = data["happiness_index"] < report_cfg.low_index_threshold
-    model_cfg = report_cfg.models.get(gen.provider)
-    cost = model_cfg.cost_rub(gen.tokens_in, gen.tokens_out) if model_cfg else None
+    cost = report_cfg.cost_rub(gen.provider, gen.tokens_in, gen.tokens_out)
     final_text = json.dumps(gen.content, ensure_ascii=False)
     return {
         "profile": profile["id"],
@@ -147,7 +146,7 @@ def summary_md(
             f"среднее {statistics.mean(costs):.2f}, максимум {max(costs):.2f}, бюджет {budget:g}, "
             f"превышений {sum(c > budget for c in costs)}"
             if costs
-            else "— (цены в config/app.yaml не заданы)"
+            else "— (цена, курс или НДС в config/app.yaml не заданы)"
         ),
         f"- Время, с: среднее {statistics.mean(latencies):.1f}, максимум {max(latencies):.1f}",
         "",

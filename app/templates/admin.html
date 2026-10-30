@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Админка — {{ app_config.site_name }}</title>
+  <script src="https://cdn.tailwindcss.com/3.4.16"></script>
+</head>
+<body class="bg-stone-50 text-stone-800">
+<main class="mx-auto max-w-6xl px-4 py-6">
+  <h1 class="text-2xl font-bold">Воронка MVP</h1>
+  <p class="mt-1 text-sm text-stone-500">Уникальные сессии по серверным событиям; период — по дате создания сессии.
+    {% if not f.include_internal %}Внутренние сессии (dev, мок-оплаты, cookie internal=1) исключены.{% else %}<b>Внутренние сессии включены.</b>{% endif %}</p>
+
+  <form method="get" class="mt-4 flex flex-wrap items-end gap-3 rounded-xl bg-white p-4 shadow-sm">
+    <label class="text-sm">С <input type="date" name="from" value="{{ f.date_from or '' }}" class="block rounded border px-2 py-1"></label>
+    <label class="text-sm">По <input type="date" name="to" value="{{ f.date_to or '' }}" class="block rounded border px-2 py-1"></label>
+    <label class="text-sm">utm_source
+      <select name="utm_source" class="block rounded border px-2 py-1">
+        <option value="">все</option>
+        {% for u in utm_options %}<option value="{{ u }}" {{ 'selected' if f.utm_source == u }}>{{ u }}</option>{% endfor %}
+      </select></label>
+    <label class="text-sm">Цена
+      <select name="price" class="block rounded border px-2 py-1">
+        <option value="">все</option>
+        {% for p in prices %}<option value="{{ p }}" {{ 'selected' if f.price == p }}>{{ p }} ₽</option>{% endfor %}
+      </select></label>
+    <label class="flex items-center gap-2 text-sm"><input type="checkbox" name="internal" value="1" {{ 'checked' if f.include_internal }}> показать внутренние</label>
+    <button class="rounded bg-stone-800 px-4 py-1.5 text-white">Применить</button>
+  </form>
+
+  <section class="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+    {% for name, formula, p in dash.metrics %}
+    {% set border = {'green': 'border-emerald-500', 'red': 'border-rose-500', 'grey': 'border-stone-300'}[p.color] %}
+    <div class="rounded-xl border-l-8 {{ border }} bg-white p-4 shadow-sm" data-metric="{{ name }}" data-color="{{ p.color }}">
+      <p class="text-sm text-stone-500">{{ name }}</p>
+      <p class="text-3xl font-bold">{{ '—' if p.value is none else '%.1f%%' % (p.value * 100) }}</p>
+      <p class="text-xs text-stone-500">95% CI: {{ '—' if p.low is none else '%.1f–%.1f%%' % (p.low * 100, p.high * 100) }} · {{ p.k }}/{{ p.n }}</p>
+      <p class="text-xs text-stone-500">порог: идём ≥ {{ '%.1f%%' % (p.threshold.go * 100) }}{% if p.threshold.stop %}, стоп &lt; {{ '%.1f%%' % (p.threshold.stop * 100) }}{% endif %}</p>
+      <p class="mt-1 text-xs text-stone-400">{{ formula }}</p>
+    </div>
+    {% endfor %}
+  </section>
+  <p class="mt-3 text-sm text-stone-600">
+    Вирусный коэффициент: {{ dash.viral[0] }}/{{ dash.viral[1] }}{% if dash.viral[1] %} = {{ '%.2f' % (dash.viral[0] / dash.viral[1]) }}{% endif %} (справочно) ·
+    Флаг скрининга: {{ dash.flagged[0] }} из {{ dash.flagged[1] }} прошедших (исключены из знаменателя конверсии) ·
+    <a class="underline" href="/admin/export/metrics.csv?{{ query }}">CSV метрик</a>
+  </p>
+
+  {% for t in dash.tables %}
+  <section class="mt-6 overflow-x-auto rounded-xl bg-white p-4 shadow-sm" id="{{ t.slug }}">
+    <div class="flex items-baseline justify-between gap-4">
+      <h2 class="font-bold">{{ t.title }}</h2>
+      <a class="text-sm underline" href="/admin/export/{{ t.slug }}.csv?{{ query }}">CSV</a>
+    </div>
+    <table class="mt-2 w-full text-sm">
+      <thead><tr>{% for h in t.headers %}<th class="border-b px-2 py-1 text-left font-medium text-stone-500">{{ h }}</th>{% endfor %}</tr></thead>
+      <tbody>{% for row in t.rows %}<tr class="odd:bg-stone-50">{% for cell in row %}<td class="px-2 py-1">{{ cell }}</td>{% endfor %}</tr>{% endfor %}</tbody>
+    </table>
+  </section>
+  {% endfor %}
+</main>
+</body>
+</html>
