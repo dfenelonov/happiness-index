@@ -26,7 +26,7 @@ import yaml
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from app.config import PROJECT_ROOT, get_settings, load_configs
+from app.config import PROJECT_ROOT, ReportSettings, get_settings, load_configs
 from app.scoring import archetype as archetype_of
 from app.scoring import leaks as leaks_of
 from app.services.llm import make_llm_provider
@@ -57,6 +57,17 @@ COLUMNS = [
     "latency_s",
     "model",
 ]
+
+
+def with_model(report_cfg: ReportSettings, provider: str, model: str) -> ReportSettings:
+    """Копия настроек с другой моделью провайдера (для сравнения моделей в eval)."""
+    if provider not in report_cfg.models:
+        raise SystemExit(f"--model работает только с yandexgpt/gigachat, а не с {provider}")
+    if model not in report_cfg.token_pricing.prices:
+        print(f"внимание: цены для {model} нет в config/app.yaml — стоимость будет «—»")
+    current = report_cfg.models[provider]
+    models = {**report_cfg.models, provider: current.model_copy(update={"model": model})}
+    return report_cfg.model_copy(update={"models": models})
 
 
 def build_profile_input(q, profile: dict[str, Any]) -> dict[str, Any]:
@@ -163,6 +174,9 @@ def main(argv: list[str] | None = None) -> Path:
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
     parser.add_argument("--provider", choices=["yandexgpt", "gigachat", "mock"])
+    parser.add_argument(
+        "--model", help="модель провайдера вместо config, напр. GigaChat (Lite) или GigaChat-Max"
+    )
     parser.add_argument("--profiles", type=Path, default=PROFILES)
     parser.add_argument("--only", help="id профилей через запятую")
     parser.add_argument("--out", type=Path, default=OUT_ROOT)
@@ -173,6 +187,8 @@ def main(argv: list[str] | None = None) -> Path:
         settings = settings.model_copy(update={"llm_provider": args.provider})
     configs = load_configs(settings.config_dir)
     q, report_cfg = configs.questionnaire, configs.app.report
+    if args.model:
+        report_cfg = with_model(report_cfg, settings.llm_provider, args.model)
     provider = make_llm_provider(settings, report_cfg)
 
     profiles = yaml.safe_load(args.profiles.read_text(encoding="utf-8"))["profiles"]
@@ -180,7 +196,8 @@ def main(argv: list[str] | None = None) -> Path:
         wanted = set(args.only.split(","))
         profiles = [p for p in profiles if p["id"] in wanted]
 
-    out = args.out / f"{datetime.now():%Y%m%d-%H%M%S}-{provider.name}"
+    label = provider.name + (f"-{args.model}" if args.model else "")
+    out = args.out / f"{datetime.now():%Y%m%d-%H%M%S}-{label}"
     (out / "raw").mkdir(parents=True)
     (out / "reports").mkdir()
     rows, gens = [], []

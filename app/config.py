@@ -450,8 +450,20 @@ class Payments(_Strict):
     receipt: Receipt
 
 
+FLOATING_MODEL_VERSIONS = frozenset({"latest", "rc", "deprecated"})
+
+
 class ReportModel(_Strict):
     model: str
+    version: str | None = None  # для YandexGPT: часть modelUri после model
+
+    @property
+    def uri_path(self) -> str:
+        return f"{self.model}/{self.version}" if self.version else self.model
+
+    @property
+    def is_pinned(self) -> bool:
+        return self.version not in FLOATING_MODEL_VERSIONS
 
 
 class TokenPrice(_Strict):
@@ -692,12 +704,31 @@ def check_settings(settings: Settings) -> None:
             raise ConfigError("EMAIL_ENCRYPTION_KEY: не валидный ключ Fernet") from None
 
 
+def find_launch_problems(settings: Settings) -> list[str]:
+    problems = []
+    if not settings.app_base_url.startswith("https://"):
+        problems.append(
+            "APP_BASE_URL: в production только https:// (secure cookie, ссылки в письмах)"
+        )
+    if settings.llm_provider == "yandexgpt":
+        model = _load_model(AppConfig, settings.config_dir / APP_CONFIG_FILE).report.models[
+            "yandexgpt"
+        ]
+        if not model.is_pinned:
+            problems.append(
+                f"report.models.yandexgpt.version: плавающая версия «{model.version}» — "
+                "закрепи конкретную версию модели"
+            )
+    return problems
+
+
 def check_production_readiness(settings: Settings) -> None:
     """В production отказываемся стартовать с плейсхолдерами и секретами по умолчанию."""
     if not settings.is_production:
         return
     problems = find_placeholders(settings.config_dir, settings.templates_dir)
     problems += find_insecure_secrets(settings)
+    problems += find_launch_problems(settings)
     if problems:
         details = "\n".join(f"  - {p}" for p in problems)
         raise ConfigError(f"APP_ENV=production, но конфигурация не готова к запуску:\n{details}")

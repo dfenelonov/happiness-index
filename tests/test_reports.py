@@ -270,9 +270,10 @@ def test_attempt_timeout_respects_deadline() -> None:
     [
         ("GigaChat-Pro", None, None, 1.5),  # 3000 токенов × 0,5 ₽, НДС уже в цене
         ("GigaChat-Max", None, None, 1.95),
-        ("yandexgpt/latest", 100.0, 0.2, 3 * 0.0066 * 100 * 1.2),  # $ без НДС → ₽ с НДС
-        ("yandexgpt/latest", None, 0.2, None),  # нет курса
-        ("yandexgpt/latest", 100.0, None, None),  # нет НДС
+        ("GigaChat", None, None, 0.195),  # Lite
+        ("yandexgpt", 100.0, 0.2, 3 * 0.0066 * 100 * 1.2),  # $ без НДС → ₽ с НДС
+        ("yandexgpt", None, 0.2, None),  # нет курса
+        ("yandexgpt", 100.0, None, None),  # нет НДС
         ("unknown-model", 100.0, 0.2, None),
     ],
 )
@@ -283,13 +284,27 @@ def test_token_cost(model, usd_rub, vat, expected) -> None:
 
 
 def test_reference_prices_from_owner() -> None:
-    prices = REPORT_CFG.token_pricing.prices
-    assert (prices["GigaChat-Pro"].input, prices["GigaChat-Max"].output) == (0.5, 0.65)
-    assert (
-        prices["yandexgpt/latest"].currency == "USD" and not prices["yandexgpt/latest"].vat_included
-    )
+    pricing = REPORT_CFG.token_pricing
+    assert (pricing.usd_rub, pricing.vat_rate) == (80.87, 0.22)
+    assert {m: p.input for m, p in pricing.prices.items()} == {
+        "yandexgpt": 0.0066,
+        "GigaChat": 0.065,
+        "GigaChat-Pro": 0.5,
+        "GigaChat-Max": 0.65,
+    }
+    assert REPORT_CFG.models["gigachat"].model == "GigaChat-Pro"  # по умолчанию Pro
+    # YandexGPT: 1000 + 1000 токенов × $0,0066 × 80,87 ₽ × 1,22 (НДС)
+    assert REPORT_CFG.cost_rub("yandexgpt", 1000, 1000) == pytest.approx(2 * 0.0066 * 80.87 * 1.22)
     assert REPORT_CFG.cost_rub("gigachat", 1000, 1000) == pytest.approx(1.0)
     assert REPORT_CFG.cost_rub("mock", 1000, 1000) is None
+
+
+def test_yandex_model_uri_uses_version() -> None:
+    model = REPORT_CFG.models["yandexgpt"]
+    assert model.uri_path == f"yandexgpt/{model.version}"
+    assert model.model_copy(update={"version": "latest"}).is_pinned is False
+    assert model.model_copy(update={"version": "rc"}).is_pinned is False
+    assert model.model_copy(update={"version": "some-pinned-id"}).is_pinned is True
 
 
 def test_model_without_price_rejected(config_dir) -> None:
@@ -297,7 +312,7 @@ def test_model_without_price_rejected(config_dir) -> None:
 
     edit_yaml(
         config_dir / "app.yaml",
-        lambda d: d["report"]["models"]["gigachat"].update(model="GigaChat"),
+        lambda d: d["report"]["models"]["gigachat"].update(model="GigaChat-Ultra"),
     )
     with pytest.raises(ConfigError, match="нет цены"):
         load_configs(config_dir)
@@ -438,6 +453,41 @@ def test_production_refuses_mock_llm_and_missing_gigachat_key(
     with pytest.raises(ConfigError, match="GIGACHAT_AUTH_KEY"):
         check_production_readiness(make_settings(tmp_path, **base | {"llm_provider": "gigachat"}))
     check_production_readiness(make_settings(tmp_path, **base | PROD_PROVIDER))
+
+
+def test_production_refuses_floating_yandex_version_and_http(tmp_path: Path, config_dir) -> None:
+    from tests.conftest import edit_yaml
+
+    base = (
+        SAFE_SECRETS
+        | PROD_PROVIDER
+        | {"app_env": "production", "config_dir": config_dir, "templates_dir": tmp_path / "t"}
+    )
+    with pytest.raises(ConfigError, match="плавающая версия «latest»"):
+        check_production_readiness(make_settings(tmp_path, **base))
+    edit_yaml(
+        config_dir / "app.yaml",
+        lambda d: d["report"]["models"]["yandexgpt"].update(version="5.1-pinned"),
+    )
+    with pytest.raises(ConfigError, match="APP_BASE_URL"):
+        check_production_readiness(
+            make_settings(tmp_path, **base | {"app_base_url": "http://x.ru"})
+        )
+
+
+def test_eval_model_override(tmp_path: Path) -> None:
+    from scripts.eval_reports import main, with_model
+
+    lite = with_model(REPORT_CFG, "gigachat", "GigaChat")
+    assert (
+        lite.models["gigachat"].model == "GigaChat"
+        and REPORT_CFG.models["gigachat"].model == "GigaChat-Pro"
+    )
+    assert lite.cost_rub("gigachat", 1000, 1000) == pytest.approx(0.13)
+    with pytest.raises(SystemExit):
+        with_model(REPORT_CFG, "mock", "GigaChat")
+    out = main(["--provider", "mock", "--only", "p01", "--out", str(tmp_path)])
+    assert out.name.endswith("-mock")
 
 
 # --- Путь в приложении: оплата → отчёт → письмо → PDF --------------------------------------------

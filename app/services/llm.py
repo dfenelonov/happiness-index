@@ -208,7 +208,7 @@ def make_llm_provider(
         return YandexGPTProvider(
             settings.yandexgpt_api_key,
             settings.yandexgpt_folder_id,
-            report.models["yandexgpt"].model,
+            report.models["yandexgpt"].uri_path,
             client or httpx.Client(),
         )
     if settings.llm_provider == "gigachat" and settings.gigachat_auth_key:

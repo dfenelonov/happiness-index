@@ -57,16 +57,19 @@ support_contacts:
 report:
   models:
     yandexgpt:
-      model: "yandexgpt/latest"   # modelUri = gpt://<YANDEXGPT_FOLDER_ID>/<model>; YandexGPT Pro 5.1
+      model: "yandexgpt"          # YandexGPT Pro; modelUri = gpt://<YANDEXGPT_FOLDER_ID>/<model>/<version>
+      # TODO: закрепить версию Pro 5.1 точным идентификатором из документации Yandex Cloud.
+      # С плавающими ветками latest / rc / deprecated production не стартует.
+      version: "latest"
     gigachat:
-      model: "GigaChat-Pro"       # или GigaChat-Max
+      model: "GigaChat-Pro"       # по умолчанию; для сравнения в eval: GigaChat (Lite), GigaChat-Max
   token_pricing:
-    # Цены справочные на 30.10.2026 — сверяй с прайсом провайдера. Стоимость отчёта считается
-    # в ₽ с НДС; пока курс или НДС не заданы, стоимость моделей в $ / без НДС показывается как «—».
-    usd_rub: null     # TODO: курс, ₽ за $1 — нужен для YandexGPT
-    vat_rate: null    # TODO: ставка НДС долей от 0 до 1 — нужна для цен без НДС
-    prices:           # за 1000 токенов
-      "yandexgpt/latest": {input: 0.0066, output: 0.0066, currency: USD, vat_included: false}
+    # Цены справочные на 30.10.2026 — сверяй с прайсом провайдера. Стоимость отчёта — в ₽ с НДС.
+    usd_rub: 80.87    # курс ЦБ на 29.10.2026
+    vat_rate: 0.22    # НДС в РФ с 01.01.2026
+    prices:           # за 1000 токенов, ключ — model (без версии)
+      "yandexgpt": {input: 0.0066, output: 0.0066, currency: USD, vat_included: false}  # Pro 5.1
+      "GigaChat": {input: 0.065, output: 0.065, currency: RUB, vat_included: true}  # Lite
       "GigaChat-Pro": {input: 0.5, output: 0.5, currency: RUB, vat_included: true}
       "GigaChat-Max": {input: 0.65, output: 0.65, currency: RUB, vat_included: true}
   temperature: 0.5

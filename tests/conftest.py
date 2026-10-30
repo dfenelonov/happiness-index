@@ -20,7 +20,9 @@ from app.config import (
 )
 
 REAL_CONFIG_DIR = PROJECT_ROOT / "config"
-PROD_PROVIDER = {"llm_provider": "yandexgpt"}  # мок LLM в production запрещён
+# Мок LLM в production запрещён, адрес — только https.
+PROD_PROVIDER = {"llm_provider": "yandexgpt", "app_base_url": "https://example.ru"}
+PINNED_YANDEX_VERSION = "pinned-for-tests"
 SAFE_SECRETS = {
     "secret_key": "s3cret-for-tests",
     "admin_password": "admin-pass-for-tests",
@@ -80,6 +82,8 @@ def filled_config_dir(config_dir: Path) -> Path:
         path = config_dir / name
         raw = path.read_text(encoding="utf-8")
         data = _fill_placeholders(yaml.safe_load(raw))
+        if name == APP_CONFIG_FILE:  # владелец закрепил версию модели перед запуском
+            data["report"]["models"]["yandexgpt"]["version"] = PINNED_YANDEX_VERSION
         comments = "".join(line + "\n" for line in raw.splitlines() if line.startswith("#"))
         dumped = yaml.safe_dump(data, allow_unicode=True, sort_keys=False)
         path.write_text(comments + dumped, encoding="utf-8")
