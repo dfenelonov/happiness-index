@@ -73,7 +73,7 @@ def report_of(app: FastAPI) -> Report:
 
 
 def test_input_is_aggregates_only(client: TestClient, app: FastAPI) -> None:
-    complete_test(client, screening=(1, 1, 1, 1))
+    complete_test(client)
     [result] = db_rows(app, Result)
     data = build_input(Q, result)
     assert set(data) == {
@@ -88,7 +88,7 @@ def test_input_is_aggregates_only(client: TestClient, app: FastAPI) -> None:
     assert data["leaks"] == result.leaks
 
 
-def test_prompt_has_no_email_ids_or_screening(client: TestClient, app: FastAPI) -> None:
+def test_prompt_has_no_email_or_ids(client: TestClient, app: FastAPI) -> None:
     order = pay(client, app)
     [result] = db_rows(app, Result)
     [(system, user)] = service(app).provider.calls
@@ -100,10 +100,6 @@ def test_prompt_has_no_email_ids_or_screening(client: TestClient, app: FastAPI) 
         str(result.session_id),
         result.public_id,
         client.cookies["sid"],
-        "screening",
-        "phq",
-        "gad",
-        "скрининг",
     ):
         assert secret.lower() not in prompt.lower(), secret
     assert json.dumps(build_input(Q, result), ensure_ascii=False) in user

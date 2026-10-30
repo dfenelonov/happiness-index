@@ -13,7 +13,6 @@
 
   <form method="post" action="/api/answers" hx-post="/api/answers" hx-target="#question" hx-swap="outerHTML" class="mt-6">
     <input type="hidden" name="item_id" value="{{ question.item.id }}">
-    {% for item_id, value in carry.items() %}<input type="hidden" name="carry_{{ item_id }}" value="{{ value }}">{% endfor %}
     <div class="space-y-2">
       {% for value, label in question.options %}
       <button type="submit" name="value" value="{{ value }}" aria-pressed="{{ 'true' if value == current else 'false' }}"

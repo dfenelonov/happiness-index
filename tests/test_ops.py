@@ -35,7 +35,7 @@ def test_full_flow_logs_have_no_pii_or_secrets(
     caplog.set_level(logging.DEBUG)
     logging.getLogger("app").propagate = True  # чтобы caplog видел логи приложения
     try:
-        location = complete_test(client, screening=(1, 1, 0, 1))
+        location = complete_test(client)
         client.get(location + "?utm_source=vk&ref=abcdef123")
         client.post("/checkout", data={"email": EMAIL, "agree_offer": "yes"})
         [order] = db_rows(app, Order)

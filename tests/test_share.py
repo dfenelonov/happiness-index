@@ -53,7 +53,7 @@ def test_render_every_archetype(entry, kind: str) -> None:
     assert Image.open(io.BytesIO(png)).size == SIZES[kind]  # type: ignore[index]
 
 
-def test_card_has_no_leak_or_screening_inputs() -> None:
+def test_card_has_no_leak_inputs() -> None:
     params = set(render_card.__code__.co_varnames[: render_card.__code__.co_argcount])
     assert params == {"kind", "happiness_index", "archetype_name", "site_name", "domain"}
 
@@ -110,11 +110,6 @@ def test_guest_has_no_share_buttons(client: TestClient, app: FastAPI) -> None:
     location = complete_test(client)
     with TestClient(app) as guest:
         assert "data-channel" not in guest.get(location).text
-
-
-def test_support_links_tracked(client: TestClient) -> None:
-    html = client.get(complete_test(client, screening=(3, 0, 0, 0))).text
-    assert 'data-event="support_link_click" data-contact-id="emergency"' in html
 
 
 def test_paywall_preview_has_blurred_traits_without_real_values(client: TestClient) -> None:

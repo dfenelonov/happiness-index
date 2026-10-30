@@ -1,8 +1,6 @@
 <div id="question" class="pt-10 text-center">
   <p class="text-xl font-semibold text-stone-900">Готово! Считаем результат…</p>
-  {# Ответы последнего блока передаются только здесь и не сохраняются в БД. #}
   <form method="post" action="/test/complete" hx-post="/test/complete" hx-trigger="load, submit" class="mt-6">
-    {% for item_id, value in carry.items() %}<input type="hidden" name="carry_{{ item_id }}" value="{{ value }}">{% endfor %}
     <button type="submit" class="flex min-h-[52px] w-full items-center justify-center rounded-2xl bg-amber-400 px-6 text-lg font-semibold text-stone-900">Показать результат</button>
   </form>
 </div>

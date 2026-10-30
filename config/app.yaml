@@ -48,12 +48,6 @@ fake_door:
 percentile:
   min_completed_tests: 500   # до этого порога строка «выше, чем у N%» не показывается
 
-support_contacts:
-  # TODO_LEGAL: владелец проверяет актуальные номера и названия служб перед запуском
-  - {id: emergency, name: "Экстренные службы", phone: "112", note: "если есть угроза жизни"}
-  - {id: helpline, name: "TODO_LEGAL: телефон доверия для взрослых", phone: "TODO_LEGAL"}
-  - {id: psychologist, name: "TODO_LEGAL: сервис записи к психологу", url: "TODO_LEGAL"}
-
 report:
   models:
     yandexgpt:
@@ -85,9 +79,10 @@ metrics:
   # красный — верхняя граница ниже stop, серый — данных недостаточно.
   completion: {go: 0.60, stop: 0.45}            # test_complete / test_start
   share: {go: 0.08, stop: 0.04}                 # сессии с share_click / test_complete
-  conversion: {go: 0.025, stop: 0.012}          # payment_success / test_complete без флага скрининга
+  conversion: {go: 0.025, stop: 0.012}          # payment_success / test_complete
   subscription_interest: {go: 0.05, stop: null} # sub_fakedoor_click / payment_success
   ci_z: 1.96
+  timezone: "Europe/Moscow"   # границы дней в фильтре периода /admin
 
 rate_limits:
   # Запросов в минуту с одного IP (SPEC §8). Тест — 30 вопросов за 5–7 минут, запас большой.

@@ -3,6 +3,7 @@ import io
 import uuid
 from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 import pytest
 from fastapi import FastAPI
@@ -10,7 +11,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy import update
 
 from app.config import Threshold, load_configs
-from app.db.models import Event, Lead, Order, Report, Result, Session
+from app.db.models import Event, Lead, Order, Report, Session
 from app.services.admin_metrics import (
     NO_UTM,
     Filters,
@@ -117,30 +118,28 @@ def test_dashboard_formulas() -> None:
         facts(
             events=FULL | {"share_click"},
             share_channels={"tg"},
-            max_question=30,
-            flagged=False,
+            max_question=26,
             archetype="pathfinder",
         ),
         facts(
             events=FULL
             | {"paywall_view", "checkout_start", "payment_success", "sub_fakedoor_click"},
-            max_question=30,
-            flagged=False,
+            max_question=26,
             archetype="organizer",
             revenue=690,
             ref=True,
         ),
-        facts(events=FULL, max_question=30, flagged=True, archetype="organizer"),  # флаг
+        facts(events=FULL, max_question=26, archetype="organizer"),
     ]
     dash = build_dashboard(sessions, CFG, Q, reports={}, leads=1)
     metrics = {name: (p.k, p.n) for name, _, p in dash.metrics}
     assert metrics == {
         "Дохождение": (3, 4),
         "Шеринг": (1, 3),
-        "Конверсия в покупку": (1, 2),  # флаг исключён из знаменателя
+        "Конверсия в покупку": (1, 3),
         "Интерес к подписке": (1, 1),
     }
-    assert dash.viral == (1, 3) and dash.flagged == (1, 3)
+    assert dash.viral == (1, 3)
     funnel = {row[0]: row[1] for row in dash.table("funnel").rows}
     assert funnel == {
         "landing_view": 5,
@@ -154,7 +153,7 @@ def test_dashboard_formulas() -> None:
     assert dropoff[3][3] == 4 and dropoff[3][5] == 1  # вопрос 4: ответили 4, один остановился
     assert dropoff[4][3] == 3
     [price_row] = dash.table("price").rows
-    assert price_row[:3] == [690, 2, 1] and price_row[5] == 690
+    assert price_row[:3] == [690, 3, 1] and price_row[5] == 690
     archetypes = {row[0]: row[2] for row in dash.table("archetypes").rows}
     assert archetypes["organizer"] == 2 and archetypes["pathfinder"] == 1
     share = {row[0]: row[1] for row in dash.table("share").rows}
@@ -172,7 +171,7 @@ def test_internal_sessions_excluded_by_default(client: TestClient, app: FastAPI)
     make_external(app)
     with app.state.session_factory() as db:
         [f] = load_facts(db, Filters())
-    assert f.completed and f.max_question == 30 and f.flagged is False
+    assert f.completed and f.max_question == 26
 
 
 def test_filters(app: FastAPI) -> None:
@@ -187,7 +186,7 @@ def test_filters(app: FastAPI) -> None:
         assert len(load_facts(db, Filters(utm_source="vk"))) == 1
         assert len(load_facts(db, Filters(utm_source=NO_UTM))) == 1
         assert len(load_facts(db, Filters(price=price))) >= 1
-        today = date.today()
+        today = datetime.now(ZoneInfo("Europe/Moscow")).date()  # даты фильтра — по Москве
         assert len(load_facts(db, Filters(date_from=today, date_to=today))) == 2
         assert load_facts(db, Filters(date_to=today - timedelta(days=1))) == []
 
@@ -357,18 +356,12 @@ def test_lead_without_htmx_renders_page(client: TestClient, app: FastAPI) -> Non
     assert "<html" in r.text and "Вернуться к отчёту" in r.text
 
 
-def test_fakedoor_unknown_token_and_flagged(client: TestClient, app: FastAPI) -> None:
+def test_fakedoor_unknown_token(client: TestClient) -> None:
     assert client.post("/report/nope/tracker").status_code == 404
     assert (
         client.post("/lead", data={"token": "nope", "email": "a@b.ru", "agree": "yes"}).status_code
         == 404
     )
-    pay(client, app)
-    with app.state.session_factory() as db:  # защитный контур, даже если отчёт как-то появился
-        db.execute(update(Result).values(screening_flag=True))
-        db.commit()
-    assert client.post(f"/report/{report_token(app)}/tracker").status_code == 404
-    assert events_named(app, "sub_fakedoor_click") == []
 
 
 # --- Сид-скрипт и дашборд на тестовых данных -----------------------------------------------------
@@ -401,6 +394,23 @@ def test_seed_refuses_production(tmp_path: Path, monkeypatch) -> None:
     monkeypatch.setattr("app.main.create_app", lambda: FakeApp)
     with pytest.raises(SystemExit, match="production"):
         seed_demo.main(["--sessions", "1"])
+
+
+def test_period_boundaries_in_moscow_time(app: FastAPI) -> None:
+    moscow = ZoneInfo("Europe/Moscow")
+    late_evening = datetime(2026, 10, 30, 23, 30, tzinfo=moscow)  # по UTC это ещё 30-е 20:30
+    after_midnight = datetime(2026, 10, 31, 0, 30, tzinfo=moscow)  # по UTC — 30-е 21:30
+    with app.state.session_factory() as db:
+        db.add_all(
+            [
+                Session(sid_hash="a" * 64, created_at=late_evening),
+                Session(sid_hash="b" * 64, created_at=after_midnight),
+            ]
+        )
+        db.commit()
+        oct31 = date(2026, 10, 31)
+        assert len(load_facts(db, Filters(date_from=oct31, date_to=oct31))) == 1
+        assert len(load_facts(db, Filters(date_to=date(2026, 10, 30)))) == 1
 
 
 def test_created_at_filter_uses_session_date(app: FastAPI) -> None:

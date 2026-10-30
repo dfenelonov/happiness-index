@@ -83,10 +83,7 @@ def report_page(token: str, request: Request, db: Db):
 
 
 def _buyer_session(db: Db, report: Report) -> Session:
-    result = _result(db, report)
-    if result.screening_flag:  # защитный контур: таким людям не продаём и не собираем email
-        raise HTTPException(404)
-    return db.get(Session, result.session_id)
+    return db.get(Session, _result(db, report).session_id)
 
 
 def _tracker(request: Request, state: str, report: Report, status: int = 200, **context):

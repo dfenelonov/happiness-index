@@ -133,7 +133,6 @@ class Item(_Strict):
     domain: str | None = None
     trait: str | None = None
     reverse: bool = False
-    group: str | None = None
 
 
 class Block(_Strict):
@@ -142,7 +141,6 @@ class Block(_Strict):
     source: str | None = None
     scale: str | None = None
     stem: str | None = None
-    store_answers: bool = True
     items: list[Item] = Field(min_length=1)
 
     def scale_of(self, item: Item) -> str | None:
@@ -171,15 +169,6 @@ class DomainsRule(_Strict):
     aggregate: Literal["mean"]
     leaks_count: int = Field(gt=0)
     tie_break_order: list[str]
-
-
-class ScreeningThreshold(_Strict):
-    sum_gte: int
-
-
-class ScreeningRule(_Strict):
-    block: str
-    flag_if_any: dict[str, ScreeningThreshold] = Field(min_length=1)
 
 
 class ArchetypeEntry(BaseModel):
@@ -225,7 +214,6 @@ class ScoringRules(_Strict):
     vciom: VciomRule
     traits: TraitsRule
     domains: DomainsRule
-    screening: ScreeningRule
     archetype: ArchetypeRule
 
 
@@ -265,12 +253,8 @@ class Questionnaire(_Strict):
                 if block.scale_of(item) not in self.scales:
                     raise ValueError(f"вопрос {item.id}: шкала не задана или не найдена")
 
-        stored = [b.store_answers for b in self.blocks]
-        if stored != sorted(stored, reverse=True):
-            raise ValueError("блоки с store_answers: false должны идти в конце теста")
-
         rules = self.scoring
-        for name in ("happiness_index", "vciom", "traits", "domains", "screening"):
+        for name in ("happiness_index", "vciom", "traits", "domains"):
             if getattr(rules, name).block not in block_ids:
                 raise ValueError(f"scoring.{name}: блок не найден")
 
@@ -278,7 +262,6 @@ class Questionnaire(_Strict):
         self._check_vciom()
         self._check_traits()
         self._check_domains()
-        self._check_screening()
 
         if {e.id for e in rules.archetype.table} != set(self.texts.archetypes):
             raise ValueError("id архетипов в scoring и texts.archetypes не совпадают")
@@ -341,16 +324,6 @@ class Questionnaire(_Strict):
             raise ValueError("texts.domains не совпадает с доменами вопросов")
         if rule.leaks_count > len(domains):
             raise ValueError("leaks_count больше числа доменов")
-
-    def _check_screening(self) -> None:
-        rule = self.scoring.screening
-        block = self.block(rule.block)
-        self._numeric_scales(block)
-        if block.store_answers:
-            raise ValueError("блок скрининга обязан иметь store_answers: false")
-        groups = {i.group for i in block.items}
-        if None in groups or groups != set(rule.flag_if_any):
-            raise ValueError("группы вопросов скрининга не совпадают с flag_if_any")
 
 
 # --- Схема config/app.yaml -----------------------------------------------------------------------
@@ -425,20 +398,6 @@ class FakeDoor(_Strict):
 
 class Percentile(_Strict):
     min_completed_tests: int = Field(ge=0)
-
-
-class SupportContact(_Strict):
-    id: str
-    name: str
-    phone: str | None = None
-    url: str | None = None
-    note: str | None = None
-
-    @model_validator(mode="after")
-    def _check(self) -> SupportContact:
-        if not (self.phone or self.url):
-            raise ValueError(f"контакт {self.id}: нужен phone или url")
-        return self
 
 
 class Receipt(_Strict):
@@ -536,6 +495,19 @@ class MetricsConfig(_Strict):
     conversion: Threshold
     subscription_interest: Threshold
     ci_z: float = Field(gt=0)
+    timezone: str = "Europe/Moscow"
+
+    @model_validator(mode="after")
+    def _check_tz(self) -> MetricsConfig:
+        from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+
+        try:
+            ZoneInfo(self.timezone)
+        except (ZoneInfoNotFoundError, ValueError):
+            raise ValueError(
+                f"metrics.timezone: неизвестный часовой пояс {self.timezone!r}"
+            ) from None
+        return self
 
 
 class AppConfig(_Strict):
@@ -548,15 +520,12 @@ class AppConfig(_Strict):
     payments: Payments
     fake_door: FakeDoor
     percentile: Percentile
-    support_contacts: list[SupportContact] = Field(min_length=1)
     report: ReportSettings
     metrics: MetricsConfig
     rate_limits: dict[Literal["answers", "checkout", "lead", "events"], int]
 
     @model_validator(mode="after")
     def _check(self) -> AppConfig:
-        if dups := _duplicates(c.id for c in self.support_contacts):
-            raise ValueError(f"повторяются id контактов: {dups}")
         for key, text in self.vciom_result_texts.items():
             _check_template(text, f"vciom_result_texts.{key}", **VCIOM_TEXT_PLACEHOLDERS)
         return self

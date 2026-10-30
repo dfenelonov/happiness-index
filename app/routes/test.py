@@ -32,25 +32,26 @@ def _render_question(
     db: DbSession,
     session: Session,
     item_id: str,
-    carried: dict[str, str],
     error: str | None = None,
     status: int = 200,
 ):
     question = _flow(request).question(item_id)
     if question.index == 0:
         log_event_once(db, session, "test_start")
-    current = (
-        carried.get(item_id) if not question.stored else stored_answers(db, session).get(item_id)
-    )
     context = {
         "question": question,
-        "current": current,
-        "carry": {k: v for k, v in carried.items() if k != item_id},
+        "current": stored_answers(db, session).get(item_id),
         "error": error,
     }
     if is_htmx(request):
         return render(request, "test/_question.html", context, status)
     return render(request, "test/page.html", {"partial": "test/_question.html", **context}, status)
+
+
+def _render_finish(request: Request):
+    if is_htmx(request):
+        return render(request, "test/_finish.html")
+    return render(request, "test/page.html", {"partial": "test/_finish.html"})
 
 
 def _active_session(request: Request, db: DbSession) -> Session | None:
@@ -66,7 +67,9 @@ def test_page(request: Request, db: Db):
     if result := result_of(db, session):
         return redirect(request, f"/r/{result.public_id}")
     item_id = _flow(request).resume_id(set(stored_answers(db, session)))
-    return _render_question(request, db, session, item_id, {})
+    if item_id is None:  # ответы есть на все вопросы — осталось посчитать результат
+        return _render_finish(request)
+    return _render_question(request, db, session, item_id)
 
 
 @router.post("/consent")
@@ -100,34 +103,22 @@ async def answer(request: Request, db: Db):
     item_id = form.get("item_id")
     if not isinstance(item_id, str) or item_id not in flow:
         raise HTTPException(400, "Неизвестный вопрос")
-    try:
-        carried = flow.carried(form)
-    except AnswerError:
-        raise HTTPException(400, "Некорректные ответы") from None
 
     if form.get("action") == "back":
-        return _render_question(request, db, session, flow.prev_id(item_id) or item_id, carried)
+        return _render_question(request, db, session, flow.prev_id(item_id) or item_id)
 
     try:
         value = flow.validate(item_id, form.get("value"))
     except AnswerError:
-        return _render_question(
-            request, db, session, item_id, carried, "Выбери один из вариантов", 422
-        )
-    if flow.is_stored(item_id):
-        save_answer(db, session, item_id, value)
-    else:
-        carried[item_id] = value
+        return _render_question(request, db, session, item_id, "Выбери один из вариантов", 422)
+    save_answer(db, session, item_id, value)
     answered = flow.question(item_id)
     log_event(db, session, "question_answered", index=answered.number, block=answered.block.id)
 
     next_id = flow.next_id(item_id)
     if next_id is None:
-        context = {"carry": carried}
-        if is_htmx(request):
-            return render(request, "test/_finish.html", context)
-        return render(request, "test/page.html", {"partial": "test/_finish.html", **context})
-    return _render_question(request, db, session, next_id, carried)
+        return _render_finish(request)
+    return _render_question(request, db, session, next_id)
 
 
 @router.post("/test/complete")
@@ -137,10 +128,8 @@ async def test_complete(request: Request, db: Db):
         return redirect(request, "/test")
     if result := result_of(db, session):
         return redirect(request, f"/r/{result.public_id}")
-    form = await request.form()
     try:
-        carried = _flow(request).carried(form)
-        result = complete(db, request.app.state.questionnaire, session, carried)
-    except (AnswerError, ScoringError):
+        result = complete(db, request.app.state.questionnaire, session)
+    except ScoringError:
         return redirect(request, "/test")
     return redirect(request, f"/r/{result.public_id}")

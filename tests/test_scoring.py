@@ -11,7 +11,6 @@ from app.scoring import (
     happiness_index,
     leaks,
     score,
-    screening_flag,
     trait_display,
     traits,
     vciom_answer,
@@ -22,8 +21,6 @@ Q: Questionnaire = load_configs(REAL_CONFIG_DIR).questionnaire
 SWLS = [i.id for i in Q.block("swls").items]
 BFI = Q.block("bfi10").items
 LEAK_ITEMS = Q.block("leaks").items
-PHQ = [i.id for i in Q.block("screening").items if i.group == "phq2"]
-GAD = [i.id for i in Q.block("screening").items if i.group == "gad2"]
 
 
 def neutral_answers() -> dict[str, Any]:
@@ -32,7 +29,6 @@ def neutral_answers() -> dict[str, Any]:
     answers |= dict.fromkeys(SWLS, 4)
     answers |= {i.id: 3 for i in LEAK_ITEMS}
     answers |= {i.id: 3 for i in BFI}
-    answers |= dict.fromkeys(PHQ + GAD, 0)
     return answers
 
 
@@ -153,28 +149,6 @@ def test_leaks_lowest_with_tie_break(scores: dict[str, float], expected: list[st
     assert leaks(Q, full) == expected
 
 
-# --- Скрининг ------------------------------------------------------------------------------------
-
-
-@pytest.mark.parametrize(
-    ("phq", "gad", "flag"),
-    [
-        ((0, 0), (0, 0), False),
-        ((1, 1), (0, 0), False),  # PHQ-2 = 2
-        ((2, 1), (0, 0), True),  # PHQ-2 = 3
-        ((0, 0), (1, 1), False),  # GAD-2 = 2
-        ((0, 0), (0, 3), True),  # GAD-2 = 3
-        ((1, 1), (1, 1), False),  # обе по 2 — не суммируются между группами
-        ((3, 3), (3, 3), True),
-    ],
-)
-def test_screening_flag(phq: tuple[int, int], gad: tuple[int, int], flag: bool) -> None:
-    answers = (
-        neutral_answers() | dict(zip(PHQ, phq, strict=True)) | dict(zip(GAD, gad, strict=True))
-    )
-    assert screening_flag(Q, answers) is flag
-
-
 # --- Итог и защита -------------------------------------------------------------------------------
 
 
@@ -184,12 +158,10 @@ def test_score_neutral() -> None:
     assert result.happiness_index == 50
     assert result.vciom_answer == "rather_yes"
     assert result.leaks == ["sleep", "relationships", "work"]
-    assert result.screening_flag is False
 
 
-def test_result_holds_no_screening_answers() -> None:
-    answers = neutral_answers() | dict.fromkeys(PHQ + GAD, 3)
-    dumped = asdict(score(Q, answers))
+def test_result_fields_match_results_table() -> None:
+    dumped = asdict(score(Q, neutral_answers()))
     assert set(dumped) == {
         "swls_raw",
         "happiness_index",
@@ -198,9 +170,7 @@ def test_result_holds_no_screening_answers() -> None:
         "archetype_id",
         "domain_scores",
         "leaks",
-        "screening_flag",
     }
-    assert dumped["screening_flag"] is True
 
 
 @pytest.mark.parametrize("option", [o.id for o in Q.scales["vciom5"].options or []])
@@ -214,8 +184,8 @@ def test_vciom_all_options(option: str) -> None:
         ({"swls_1": 8}, "вне шкалы"),
         ({"swls_1": 0}, "вне шкалы"),
         ({"bfi_1": 6}, "вне шкалы"),
-        ({"phq_1": 4}, "вне шкалы"),
-        ({"gad_2": -1}, "вне шкалы"),
+        ({"leak_sleep_1": 6}, "вне шкалы"),
+        ({"bfi_2": 0}, "вне шкалы"),
         ({"swls_1": True}, "некорректный"),
         ({"swls_1": "abc"}, "некорректный"),
         ({"swls_1": None}, "некорректный"),
@@ -228,7 +198,7 @@ def test_invalid_answers_rejected(patch: dict[str, Any], message: str) -> None:
         score(Q, neutral_answers() | patch)
 
 
-@pytest.mark.parametrize("missing", ["vciom_1", "swls_5", "leak_meaning_2", "bfi_10", "gad_2"])
+@pytest.mark.parametrize("missing", ["vciom_1", "swls_5", "leak_meaning_2", "bfi_10"])
 def test_missing_answer_rejected(missing: str) -> None:
     answers = neutral_answers()
     del answers[missing]

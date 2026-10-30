@@ -37,7 +37,6 @@
     if (tracked) {
       var props = {};
       if (tracked.dataset.channel) props.channel = tracked.dataset.channel;
-      if (tracked.dataset.contactId) props.contact_id = tracked.dataset.contactId;
       sendEvent(tracked.dataset.event, props);
     }
 
@@ -89,7 +88,7 @@
       clickmap: true,
       trackLinks: true,
       accurateTrackBounce: true,
-      webvisor: false, // выключен на время MVP: записал бы ответы теста и блок поддержки
+      webvisor: false, // выключен на время MVP: записал бы ответы теста
     });
   }
 

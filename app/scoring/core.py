@@ -19,7 +19,7 @@ class ScoringError(ValueError):
 
 @dataclass(frozen=True)
 class ScoringResult:
-    """Всё, что пишется в results. Сырых ответов скрининга здесь нет — только флаг."""
+    """Всё, что пишется в results."""
 
     swls_raw: int
     happiness_index: int
@@ -28,7 +28,6 @@ class ScoringResult:
     archetype_id: str
     domain_scores: dict[str, float]  # 1–5, в порядке tie_break_order
     leaks: list[str]
-    screening_flag: bool
 
 
 def _to_int(item_id: str, value: int | str) -> int:
@@ -127,17 +126,6 @@ def leaks(q: Questionnaire, scores: Mapping[str, float]) -> list[str]:
     return ranked[: rule.leaks_count]
 
 
-def screening_flag(q: Questionnaire, answers: Answers) -> bool:
-    """Флаг, если сумма любой группы (PHQ-2, GAD-2) достигла порога."""
-    rule = q.scoring.screening
-    block = q.block(rule.block)
-    values = _numeric_answers(q, block, answers)
-    sums: dict[str, int] = {}
-    for item in block.items:
-        sums[item.group] = sums.get(item.group, 0) + values[item.id]  # type: ignore[index]
-    return any(sums[g] >= t.sum_gte for g, t in rule.flag_if_any.items())
-
-
 def score(q: Questionnaire, answers: Answers) -> ScoringResult:
     swls_raw, index = happiness_index(q, answers)
     trait_scores = traits(q, answers)
@@ -150,5 +138,4 @@ def score(q: Questionnaire, answers: Answers) -> ScoringResult:
         archetype_id=archetype(q, trait_scores),
         domain_scores=domains,
         leaks=leaks(q, domains),
-        screening_flag=screening_flag(q, answers),
     )

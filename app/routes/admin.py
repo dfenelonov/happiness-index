@@ -57,6 +57,7 @@ def _filters(request: Request) -> Filters:
         utm_source=params.get("utm_source") or None,
         price=int(price) if price else None,
         include_internal=params.get("internal") == "1",
+        timezone=request.app.state.app_config.metrics.timezone,
     )
 
 

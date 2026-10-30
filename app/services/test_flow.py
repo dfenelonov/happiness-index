@@ -1,16 +1,10 @@
-"""Порядок вопросов, навигация и проверка ответов по config/questionnaire.yaml.
+"""Порядок вопросов, навигация и проверка ответов по config/questionnaire.yaml."""
 
-Ответы блоков с `store_answers: false` (скрининг) не попадают в БД: они живут только в скрытых
-полях формы `carry_<item_id>` до POST /test/complete.
-"""
-
-from collections.abc import Mapping
 from dataclasses import dataclass
 
 from app.config import Block, Item, Questionnaire
 
 LICENSED_PLACEHOLDER = "TODO_LICENSED_TEXT"
-CARRY_PREFIX = "carry_"
 
 
 class AnswerError(ValueError):
@@ -25,10 +19,6 @@ class Question:
     total: int
     text: str
     options: list[tuple[str, str]]  # (value, label)
-
-    @property
-    def stored(self) -> bool:
-        return self.block.store_answers
 
     @property
     def number(self) -> int:
@@ -55,9 +45,6 @@ class TestFlow:
     def __contains__(self, item_id: object) -> bool:
         return item_id in self._index
 
-    def is_stored(self, item_id: str) -> bool:
-        return self._order[self._index[item_id]][0].store_answers
-
     def question(self, item_id: str) -> Question:
         n = self._index[item_id]
         block, item = self._order[n]
@@ -83,12 +70,9 @@ class TestFlow:
         n = self._index[item_id] - 1
         return self._order[n][1].id if n >= 0 else None
 
-    def resume_id(self, answered: set[str]) -> str:
-        """Первый неотвеченный сохраняемый вопрос, иначе — начало несохраняемых блоков."""
-        for block, item in self._order:
-            if not block.store_answers or item.id not in answered:
-                return item.id
-        return self._order[-1][1].id  # pragma: no cover — конфиг гарантирует блок скрининга
+    def resume_id(self, answered: set[str]) -> str | None:
+        """Первый неотвеченный вопрос; None — ответы есть на все (осталось завершить тест)."""
+        return next((item.id for _, item in self._order if item.id not in answered), None)
 
     def validate(self, item_id: str, value: object) -> str:
         if item_id not in self._index:
@@ -97,12 +81,3 @@ class TestFlow:
         if not isinstance(value, str) or value not in allowed:
             raise AnswerError(f"{item_id}: недопустимый ответ")
         return value
-
-    def carried(self, form: Mapping[str, object]) -> dict[str, str]:
-        """Проверенные ответы несохраняемых блоков из скрытых полей формы."""
-        result = {}
-        for key, value in form.items():
-            item_id = key.removeprefix(CARRY_PREFIX)
-            if key.startswith(CARRY_PREFIX) and item_id in self and not self.is_stored(item_id):
-                result[item_id] = self.validate(item_id, value)
-        return result

@@ -14,10 +14,6 @@ scales:
     max: 7
     labels: ["Совершенно не согласен", "Не согласен", "Скорее не согласен", "Ни то ни другое",
              "Скорее согласен", "Согласен", "Полностью согласен"]
-  freq4:    # для скрининга: за последние 2 недели
-    min: 0
-    max: 3
-    labels: ["Ни разу", "Несколько дней", "Больше половины дней", "Почти каждый день"]
   vciom5:
     options:
       - {id: definitely_yes, label: "Определённо да", happy: true}
@@ -26,7 +22,7 @@ scales:
       - {id: definitely_no, label: "Определённо нет", happy: false}
       - {id: hard_to_say, label: "Затрудняюсь ответить", happy: null}
 
-# Порядок блоков в тесте = порядок в этом списке (30 вопросов)
+# Порядок блоков в тесте = порядок в этом списке (26 вопросов)
 blocks:
   - id: vciom
     title: "Для начала"
@@ -79,18 +75,6 @@ blocks:
       - {id: bfi_9, trait: N, reverse: false, text: TODO_LICENSED_TEXT}
       - {id: bfi_10, trait: O, reverse: false, text: TODO_LICENSED_TEXT}
 
-  - id: screening
-    title: "Последние две недели"
-    source: "PHQ-2 и GAD-2 — русская адаптация, проверить условия использования"
-    scale: freq4
-    store_answers: false   # сырые ответы НЕ сохраняются в БД, только итоговый флаг
-    stem: "Как часто за последние 2 недели тебя беспокоило следующее?"
-    items:
-      - {id: phq_1, group: phq2, text: TODO_LICENSED_TEXT}
-      - {id: phq_2, group: phq2, text: TODO_LICENSED_TEXT}
-      - {id: gad_1, group: gad2, text: TODO_LICENSED_TEXT}
-      - {id: gad_2, group: gad2, text: TODO_LICENSED_TEXT}
-
 scoring:
   happiness_index:
     block: swls
@@ -112,12 +96,6 @@ scoring:
     aggregate: mean
     leaks_count: 3
     tie_break_order: [sleep, relationships, work, money, meaning]
-
-  screening:
-    block: screening
-    flag_if_any:
-      phq2: {sum_gte: 3}
-      gad2: {sum_gte: 3}
 
   archetype:
     traits: [E, N, O]

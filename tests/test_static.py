@@ -51,5 +51,5 @@ def test_static_assets_served_with_version(client: TestClient) -> None:
 def test_about_method_lists_sources(client: TestClient) -> None:
     html = client.get("/about-method").text
     assert "Satisfaction With Life Scale (Diener et al., 1985)" in html
-    assert "BFI-10 (Rammstedt &amp; John, 2007)" in html and "PHQ-2 и GAD-2" in html
+    assert "BFI-10 (Rammstedt &amp; John, 2007)" in html
     assert 'href="/about-method"' in client.get("/").text

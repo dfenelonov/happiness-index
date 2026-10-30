@@ -21,7 +21,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from app.db.models import Event, Lead, Order, Report, Result, Session
 
 UTM = {"vk": 0.35, "tg": 0.25, "yandex": 0.15, None: 0.15, "share": 0.10}
-P_START, HAZARD_PER_QUESTION, P_FLAG, P_SHARE = 0.72, 0.012, 0.07, 0.09
+P_START, HAZARD_PER_QUESTION, P_SHARE = 0.72, 0.012, 0.09
 P_PAYWALL_VIEW, CONVERSION = 0.85, {490: 0.04, 690: 0.03, 990: 0.02}
 P_REFUND, P_FAKEDOOR, P_EMAIL, P_INTERNAL = 0.03, 0.07, 0.5, 0.05
 REPORT_STATUS = {"ready": 0.92, "fallback": 0.03, "regenerated": 0.04, "failed": 0.01}
@@ -75,7 +75,6 @@ def seed(app, sessions: int, rng: random.Random) -> dict[str, int]:
             answered = index
         if answered < len(items):
             continue
-        flagged = rng.random() < P_FLAG
         archetype = rng.choice(archetypes)
         rows["results"].append(
             {
@@ -88,7 +87,6 @@ def seed(app, sessions: int, rng: random.Random) -> dict[str, int]:
                 "domain_scores": {d: 3.0 for d in domains},
                 "leaks": rng.sample(domains, 3),
                 "vciom_answer": rng.choice(vciom),
-                "screening_flag": flagged,
                 "completed_at": at,
             }
         )
@@ -96,9 +94,6 @@ def seed(app, sessions: int, rng: random.Random) -> dict[str, int]:
         event(sid, "result_view", at, mode="owner")
         if rng.random() < P_SHARE:
             event(sid, "share_click", at, channel=rng.choice(["vk", "tg", "copy", "card"]))
-        if flagged:
-            event(sid, "screening_flag_shown", at)
-            continue
         price = rng.choice(cfg.pricing.ab_variants_rub)
         session["price_variant"] = price
         if rng.random() < P_PAYWALL_VIEW:

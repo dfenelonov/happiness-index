@@ -44,7 +44,6 @@
   </section>
   <p class="mt-3 text-sm text-stone-600">
     Вирусный коэффициент: {{ dash.viral[0] }}/{{ dash.viral[1] }}{% if dash.viral[1] %} = {{ '%.2f' % (dash.viral[0] / dash.viral[1]) }}{% endif %} (справочно) ·
-    Флаг скрининга: {{ dash.flagged[0] }} из {{ dash.flagged[1] }} прошедших (исключены из знаменателя конверсии) ·
     <a class="underline" href="/admin/export/metrics.csv?{{ query }}">CSV метрик</a>
   </p>
 

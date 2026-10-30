@@ -62,18 +62,17 @@
   <h2 class="text-lg font-bold text-stone-900">Поделиться результатом</h2>
   <div class="mt-4 grid grid-cols-2 gap-2">
     <a href="{{ share['vk'] }}" target="_blank" rel="noopener" data-event="share_click" data-channel="vk"
-       class="flex min-h-[48px] items-center justify-center rounded-2xl bg-[#0062CC] px-3 font-semibold text-white">ВКонтакте</a>
+       class="flex min-h-[48px] items-center justify-center text-center rounded-2xl bg-[#0062CC] px-3 font-semibold text-white">ВКонтакте</a>
     <a href="{{ share['tg'] }}" target="_blank" rel="noopener" data-event="share_click" data-channel="tg"
-       class="flex min-h-[48px] items-center justify-center rounded-2xl bg-[#1A73A8] px-3 font-semibold text-white">Telegram</a>
+       class="flex min-h-[48px] items-center justify-center text-center rounded-2xl bg-[#1A73A8] px-3 font-semibold text-white">Telegram</a>
     <button type="button" data-event="share_click" data-channel="copy" data-copy="{{ share['copy'] }}"
-       class="flex min-h-[48px] items-center justify-center rounded-2xl border border-stone-300 px-3 font-semibold text-stone-800"><span data-label>Скопировать ссылку</span></button>
+       class="flex min-h-[48px] items-center justify-center text-center rounded-2xl border border-stone-300 px-3 font-semibold text-stone-800"><span data-label>Скопировать ссылку</span></button>
     <a href="{{ share['card'] }}" download="indeks-schastya.png" data-event="share_click" data-channel="card"
-       class="flex min-h-[48px] items-center justify-center rounded-2xl border border-stone-300 px-3 font-semibold text-stone-800">Картинка для сторис</a>
+       class="flex min-h-[48px] items-center justify-center text-center rounded-2xl border border-stone-300 px-3 font-semibold text-stone-800">Картинка для сторис</a>
   </div>
 </section>
 
-{% if show_support %}{% include "_support.html" %}{% endif %}
-{% if show_paywall %}{% include "_paywall.html" %}{% endif %}
+{% include "_paywall.html" %}
 
 {% else %}
 <a href="/?ref={{ result.public_id }}" class="mt-6 flex min-h-[52px] w-full items-center justify-center rounded-2xl bg-amber-400 px-6 text-lg font-semibold text-stone-900 shadow-sm active:bg-amber-500">Пройди тест сам</a>

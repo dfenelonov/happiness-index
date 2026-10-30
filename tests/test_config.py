@@ -17,9 +17,8 @@ from tests.conftest import PROD_PROVIDER, REAL_CONFIG_DIR, SAFE_SECRETS, edit_ya
 def test_real_configs_are_valid() -> None:
     configs = load_configs(REAL_CONFIG_DIR)
     q = configs.questionnaire
-    assert len(q.items) == 30
-    assert [b.id for b in q.blocks] == ["vciom", "swls", "leaks", "bfi10", "screening"]
-    assert q.block("screening").store_answers is False
+    assert len(q.items) == 26
+    assert [b.id for b in q.blocks] == ["vciom", "swls", "leaks", "bfi10"]
     assert len(q.scoring.archetype.table) == 8
     assert configs.app.pricing.ab_variants_rub == [490, 690, 990]
 
@@ -34,14 +33,6 @@ def _dup_item_id(d: dict[str, Any]) -> None:
 
 def _unknown_scale(d: dict[str, Any]) -> None:
     _block(d, "swls")["scale"] = "nope"
-
-
-def _screening_stored(d: dict[str, Any]) -> None:
-    _block(d, "screening")["store_answers"] = True
-
-
-def _screening_default_stored(d: dict[str, Any]) -> None:
-    del _block(d, "screening")["store_answers"]
 
 
 def _missing_archetype(d: dict[str, Any]) -> None:
@@ -107,8 +98,6 @@ def _not_big_five(d: dict[str, Any]) -> None:
     [
         _dup_item_id,
         _unknown_scale,
-        _screening_stored,
-        _screening_default_stored,
         _missing_archetype,
         _dup_archetype_combo,
         _trait_two_reversed,
@@ -163,7 +152,12 @@ def test_broken_yaml_rejected(config_dir: Path) -> None:
 def test_placeholders_found_in_values(tmp_path: Path) -> None:
     found = find_placeholders(REAL_CONFIG_DIR, tmp_path / "templates")
     assert "questionnaire.yaml.blocks[1].items[0].text: TODO_LICENSED_TEXT" in found
-    assert any(f.startswith("app.yaml.support_contacts[1]") for f in found)
+    assert len(found) == 15  # SWLS 5 + BFI-10 10
+
+
+def test_placeholders_found_in_app_yaml(config_dir: Path, tmp_path: Path) -> None:
+    edit_yaml(config_dir / "app.yaml", lambda d: d["fake_door"].update(name="TODO_LEGAL"))
+    assert "app.yaml.fake_door.name: TODO_LEGAL" in find_placeholders(config_dir, tmp_path / "t")
 
 
 def test_placeholders_in_comments_ignored(filled_config_dir: Path, tmp_path: Path) -> None:

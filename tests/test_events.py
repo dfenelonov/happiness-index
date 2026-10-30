@@ -57,27 +57,20 @@ def test_test_start_logged_once_after_back(client: TestClient, app: FastAPI) -> 
 
 
 def test_no_answer_values_in_any_event(client: TestClient, app: FastAPI) -> None:
-    complete_test(client, screening=(3, 2, 1, 3))
+    complete_test(client)
     for event in events(app):
         assert "value" not in event.props
         if event.name == "question_answered":
             assert set(event.props) == {"index", "block"}
 
 
-def test_screening_flag_shown_only_to_owner(client: TestClient, app: FastAPI) -> None:
-    location = complete_test(client, screening=(3, 0, 0, 0))
+def test_result_view_modes(client: TestClient, app: FastAPI) -> None:
+    location = complete_test(client)
     client.get(location)
     with TestClient(app) as guest:
         guest.get(location)
-    shown = [e for e in events(app) if e.name == "screening_flag_shown"]
-    assert len(shown) == 1 and shown[0].props == {}
     modes = [e.props["mode"] for e in events(app) if e.name == "result_view"]
     assert modes == ["owner", "guest"]
-
-
-def test_no_flag_no_screening_event(client: TestClient, app: FastAPI) -> None:
-    client.get(complete_test(client))
-    assert "screening_flag_shown" not in names(app)
 
 
 @pytest.mark.parametrize(
@@ -85,10 +78,6 @@ def test_no_flag_no_screening_event(client: TestClient, app: FastAPI) -> None:
     [
         ({"name": "share_click", "props": {"channel": "vk"}}, {"channel": "vk"}),
         ({"name": "share_click", "props": {"channel": "card"}}, {"channel": "card"}),
-        (
-            {"name": "support_link_click", "props": {"contact_id": "emergency"}},
-            {"contact_id": "emergency"},
-        ),
     ],
 )
 def test_client_event_accepted(client: TestClient, app: FastAPI, payload, props) -> None:
@@ -106,7 +95,7 @@ def test_client_event_accepted(client: TestClient, app: FastAPI, payload, props)
         {"name": "share_click", "props": {"channel": "email"}},
         {"name": "share_click", "props": {"channel": "vk", "email": "a@b.c"}},
         {"name": "share_click"},
-        {"name": "support_link_click", "props": {"contact_id": "unknown"}},
+        {"name": "support_link_click", "props": {"contact_id": "x"}},  # удалённое событие
         {"name": "share_click", "props": ["vk"]},
         {"props": {"channel": "vk"}},
         ["share_click"],

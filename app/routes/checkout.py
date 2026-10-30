@@ -47,9 +47,6 @@ async def checkout(request: Request, db: Db):
     result = result_of(db, session) if session and session.consent_at else None
     if session is None or result is None:
         return redirect(request, "/test")
-    # Защитный контур: человеку с флагом скрининга не продаём ни при каком запросе.
-    if result.screening_flag:
-        raise HTTPException(403)
     if paid_order(db, session):
         return redirect(request, "/checkout/return")
 

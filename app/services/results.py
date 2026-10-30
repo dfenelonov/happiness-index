@@ -35,10 +35,9 @@ def save_answer(db: DbSession, session: Session, item_id: str, value: str) -> No
     db.commit()
 
 
-def complete(db: DbSession, q: Questionnaire, session: Session, carried: dict[str, str]) -> Result:
-    """Подсчёт и запись результата. Ответы скрининга (`carried`) используются только здесь
-    и в БД не попадают — сохраняется лишь флаг. Бросает ScoringError при неполных ответах."""
-    scored: ScoringResult = score(q, stored_answers(db, session) | carried)
+def complete(db: DbSession, q: Questionnaire, session: Session) -> Result:
+    """Подсчёт и запись результата. Бросает ScoringError при неполных ответах."""
+    scored: ScoringResult = score(q, stored_answers(db, session))
     result = Result(
         session_id=session.id,
         public_id=secrets.token_urlsafe(PUBLIC_ID_BYTES),
@@ -53,7 +52,6 @@ def complete(db: DbSession, q: Questionnaire, session: Session, carried: dict[st
         domain_scores=scored.domain_scores,
         leaks=scored.leaks,
         vciom_answer=scored.vciom_answer,
-        screening_flag=scored.screening_flag,
     )
     db.add(result)
     try:

@@ -55,22 +55,16 @@ def result_context(request: Request, db: Db, result: Result, session: Session) -
     }
     if not owner:
         return context
-    # Флаг скрининга определяет блок только по данным из БД — параметры URL не влияют.
-    context |= {
+    # Владелец результата видит пейволл всегда; гость — никогда.
+    return context | {
         "percentile": percentile(db, result, app_config.percentile.min_completed_tests),
         "vciom": vciom_line(app_config, result.vciom_answer),
         "leaks": [q.texts.domains[d] for d in result.leaks],
-        "show_support": result.screening_flag,
-        "show_paywall": not result.screening_flag,
         "share": share_links(request.app.state.settings.app_base_url.rstrip("/"), result),
+        "price": price_for(db, session, app_config.pricing.ab_variants_rub),
+        "refund_days": app_config.pricing.refund_days,
+        "paid": paid_order(db, session) is not None,
     }
-    if not result.screening_flag:
-        context |= {
-            "price": price_for(db, session, app_config.pricing.ab_variants_rub),
-            "refund_days": app_config.pricing.refund_days,
-            "paid": paid_order(db, session) is not None,
-        }
-    return context
 
 
 @router.get("/r/{public_id}", response_class=HTMLResponse)
@@ -81,8 +75,6 @@ def result_page(public_id: str, request: Request, db: Db):
     session, sid = ensure_session(db, request, settings)
     owner = session.id == result.session_id
     log_event(db, session, "result_view", mode="owner" if owner else "guest")
-    if owner and result.screening_flag:
-        log_event(db, session, "screening_flag_shown")
     response = render(request, "result.html", result_context(request, db, result, session))
     set_sid_cookie(response, sid, settings)
     return response

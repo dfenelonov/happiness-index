@@ -53,10 +53,7 @@ class Session(Base):
 
 
 class Answer(Base):
-    """Последний ответ на вопрос: при «назад» строка перезаписывается (upsert).
-
-    Ответы блока скрининга сюда не пишутся никогда (store_answers: false).
-    """
+    """Последний ответ на вопрос: при «назад» строка перезаписывается (upsert)."""
 
     __tablename__ = "answers"
 
@@ -89,7 +86,6 @@ class Result(Base):
     domain_scores: Mapped[dict[str, float]] = mapped_column(JsonType, nullable=False)
     leaks: Mapped[list[str]] = mapped_column(JsonType, nullable=False)
     vciom_answer: Mapped[str] = mapped_column(String(32), nullable=False)
-    screening_flag: Mapped[bool] = mapped_column(Boolean, nullable=False)
     completed_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )

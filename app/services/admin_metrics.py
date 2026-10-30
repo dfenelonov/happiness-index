@@ -8,8 +8,9 @@ import math
 import uuid
 from collections import Counter
 from dataclasses import dataclass, field
-from datetime import UTC, date, datetime, time, timedelta
+from datetime import date, datetime, time, timedelta
 from typing import Any
+from zoneinfo import ZoneInfo
 
 from sqlalchemy import Select, func, select
 from sqlalchemy.orm import Session as DbSession
@@ -35,6 +36,7 @@ class Filters:
     utm_source: str | None = None  # NO_UTM — сессии без utm_source
     price: int | None = None
     include_internal: bool = False
+    timezone: str = "Europe/Moscow"  # в каком поясе даты from/to (границы суток)
 
 
 @dataclass
@@ -46,7 +48,6 @@ class SessionFacts:
     events: set[str] = field(default_factory=set)
     share_channels: set[str] = field(default_factory=set)
     max_question: int = 0
-    flagged: bool | None = None  # None — теста нет
     archetype: str | None = None
     revenue: int = 0
 
@@ -70,10 +71,11 @@ def session_ids(f: Filters) -> Select:
     query = select(Session.id)
     if not f.include_internal:
         query = query.where(Session.is_internal.is_(False))
+    tz = ZoneInfo(f.timezone)
     if f.date_from:
-        query = query.where(Session.created_at >= datetime.combine(f.date_from, time(), UTC))
+        query = query.where(Session.created_at >= datetime.combine(f.date_from, time(), tz))
     if f.date_to:
-        end = datetime.combine(f.date_to + timedelta(days=1), time(), UTC)
+        end = datetime.combine(f.date_to + timedelta(days=1), time(), tz)
         query = query.where(Session.created_at < end)
     if f.utm_source == NO_UTM:
         query = query.where(Session.utm_source.is_(None))
@@ -112,12 +114,10 @@ def load_facts(db: DbSession, f: Filters) -> list[SessionFacts]:
         .group_by(Event.session_id)
     ):
         facts[sid].max_question = max_index or 0
-    for sid, flagged, archetype in db.execute(
-        select(Result.session_id, Result.screening_flag, Result.archetype_id).where(
-            Result.session_id.in_(ids)
-        )
+    for sid, archetype in db.execute(
+        select(Result.session_id, Result.archetype_id).where(Result.session_id.in_(ids))
     ):
-        facts[sid].flagged, facts[sid].archetype = flagged, archetype
+        facts[sid].archetype = archetype
     for sid, revenue in db.execute(
         select(Order.session_id, func.sum(Order.amount_rub))
         .where(Order.session_id.in_(ids), Order.status == "succeeded")
@@ -186,7 +186,6 @@ class Table:
 class Dashboard:
     metrics: list[tuple[str, str, Proportion]]  # (название, формула, доля)
     viral: tuple[int, int]
-    flagged: tuple[int, int]
     tables: list[Table]
 
     def table(self, slug: str) -> Table | None:
@@ -212,7 +211,6 @@ def build_dashboard(
     z = m.ci_z
     started = [s for s in facts if s.started]
     completed = [s for s in facts if s.completed]
-    eligible = [s for s in completed if not s.flagged]  # без флага скрининга
     paid = [s for s in facts if s.paid]
 
     metrics = [
@@ -230,8 +228,8 @@ def build_dashboard(
         ),
         (
             "Конверсия в покупку",
-            "payment_success / test_complete без флага",
-            proportion(sum(s.paid for s in eligible), len(eligible), z, m.conversion),
+            "payment_success / test_complete",
+            proportion(sum(s.paid for s in completed), len(completed), z, m.conversion),
         ),
         (
             "Интерес к подписке",
@@ -245,19 +243,18 @@ def build_dashboard(
         ),
     ]
     viral = (sum(s.has_ref for s in started), len(completed))
-    flagged = (sum(bool(s.flagged) for s in completed), len(completed))
 
     tables = [
         _funnel(facts),
         _dropoff(started, q),
         _share(completed, viral),
-        _by_price(eligible, z, m.conversion),
+        _by_price(completed, z, m.conversion),
         _by_utm(facts, z),
         _fake_door(paid, facts, leads, z, m.subscription_interest),
         _archetypes(completed, q),
         _reports(reports),
     ]
-    return Dashboard(metrics, viral, flagged, tables)
+    return Dashboard(metrics, viral, tables)
 
 
 def _funnel(facts: list[SessionFacts]) -> Table:
@@ -314,10 +311,10 @@ def _share(completed: list[SessionFacts], viral: tuple[int, int]) -> Table:
     return Table("share", "Шеринг по каналам", ["канал", "сессий", "от прошедших"], rows)
 
 
-def _by_price(eligible: list[SessionFacts], z: float, threshold: Threshold) -> Table:
+def _by_price(completed: list[SessionFacts], z: float, threshold: Threshold) -> Table:
     rows = []
-    for price in sorted({s.price for s in eligible}, key=lambda p: (p is None, p)):
-        group = [s for s in eligible if s.price == price]
+    for price in sorted({s.price for s in completed}, key=lambda p: (p is None, p)):
+        group = [s for s in completed if s.price == price]
         payers = sum(s.paid for s in group)
         revenue = sum(s.revenue for s in group)
         p = proportion(payers, len(group), z, threshold)
@@ -334,7 +331,7 @@ def _by_price(eligible: list[SessionFacts], z: float, threshold: Threshold) -> T
         )
     return Table(
         "price",
-        "Конверсия и выручка по A/B-цене (прошедшие без флага скрининга)",
+        "Конверсия и выручка по A/B-цене (прошедшие тест)",
         [
             "цена, ₽",
             "прошли тест",
@@ -354,9 +351,8 @@ def _by_utm(facts: list[SessionFacts], z: float) -> Table:
         group = [s for s in facts if (s.utm_source or NO_UTM) == utm]
         started = [s for s in group if s.started]
         completed = [s for s in group if s.completed]
-        eligible = [s for s in completed if not s.flagged]
         completion = proportion(len([s for s in started if s.completed]), len(started), z)
-        conversion = proportion(sum(s.paid for s in eligible), len(eligible), z)
+        conversion = proportion(sum(s.paid for s in completed), len(completed), z)
         rows.append(
             [
                 utm,

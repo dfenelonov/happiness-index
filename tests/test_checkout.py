@@ -26,7 +26,6 @@ from tests.conftest import SAFE_SECRETS, make_settings
 from tests.flow import HTMX, complete_test, db_rows
 
 EMAIL = "Ivan.Petrov@Example.RU "
-FLAGGED = (3, 0, 0, 0)
 
 
 def gateway(app: FastAPI) -> MockGateway:
@@ -89,13 +88,11 @@ def test_paywall_shows_session_price(client: TestClient, app: FastAPI) -> None:
 # --- POST /checkout ------------------------------------------------------------------------------
 
 
-@pytest.mark.parametrize("headers", [{}, HTMX])
-def test_checkout_rejects_screening_flag(client: TestClient, app: FastAPI, headers) -> None:
-    complete_test(client, screening=FLAGGED)
-    r = checkout(client, headers=headers)
-    assert r.status_code == 403
-    assert db_rows(app, Order) == [] and gateway(app).requests == []
-    assert events(app, "checkout_start") == []
+@pytest.mark.parametrize("swls", [1, 7])  # минимальный и максимальный индекс
+def test_checkout_open_to_every_owner(client: TestClient, app: FastAPI, swls: int) -> None:
+    complete_test(client, swls=swls)
+    assert checkout(client).status_code == 303
+    assert len(db_rows(app, Order)) == 1 and len(events(app, "checkout_start")) == 1
 
 
 def test_checkout_without_result_goes_to_test(client: TestClient, app: FastAPI) -> None:
@@ -348,10 +345,8 @@ def test_paywall_view_price_from_client_rejected(client: TestClient) -> None:
     assert r.status_code == 400
 
 
-def test_paywall_view_ignored_for_flagged_or_without_result(client, app) -> None:
+def test_paywall_view_ignored_without_result(client, app) -> None:
     client.get("/")
-    client.post("/api/events", json={"name": "paywall_view", "props": {}})
-    complete_test(client, screening=FLAGGED)
     client.post("/api/events", json={"name": "paywall_view", "props": {}})
     assert events(app, "paywall_view") == []
 

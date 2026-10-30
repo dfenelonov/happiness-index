@@ -21,8 +21,6 @@ EVENTS: dict[str, frozenset[str]] = {
     "test_complete": frozenset({"archetype_id"}),
     "result_view": frozenset({"mode"}),
     "share_click": frozenset({"channel"}),
-    "screening_flag_shown": frozenset(),
-    "support_link_click": frozenset({"contact_id"}),
     "paywall_view": frozenset({"price"}),
     "checkout_start": frozenset({"price"}),
     "payment_success": frozenset({"price"}),
@@ -57,17 +55,11 @@ def log_event_once(db: DbSession, session: Session, name: str, **props: Any) -> 
 
 
 # События, которые может прислать браузер, и проверка их props. Остальные пишет только сервер.
-def validate_client_event(name: object, props: object, contact_ids: set[str]) -> dict[str, str]:
+def validate_client_event(name: object, props: object) -> dict[str, str]:
     if not isinstance(props, dict):
         raise ValueError("props должен быть объектом")
     if name == "share_click" and set(props) == {"channel"} and props["channel"] in SHARE_CHANNELS:
         return {"channel": props["channel"]}
     if name == "paywall_view" and props == {}:
         return {}  # цену подставляет сервер из сессии — клиенту не доверяем
-    if (
-        name == "support_link_click"
-        and set(props) == {"contact_id"}
-        and props["contact_id"] in contact_ids
-    ):
-        return {"contact_id": props["contact_id"]}
     raise ValueError("недопустимое событие")
