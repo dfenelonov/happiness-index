@@ -75,7 +75,7 @@ class Result(Base):
         ForeignKey("sessions.id", ondelete="CASCADE"), primary_key=True
     )
     public_id: Mapped[str] = mapped_column(String(32), unique=True, nullable=False)
-    swls_raw: Mapped[int] = mapped_column(Integer, nullable=False)
+    life_raw: Mapped[int] = mapped_column(Integer, nullable=False)
     happiness_index: Mapped[int] = mapped_column(Integer, nullable=False)
     trait_e: Mapped[float] = mapped_column(Float, nullable=False)
     trait_a: Mapped[float] = mapped_column(Float, nullable=False)

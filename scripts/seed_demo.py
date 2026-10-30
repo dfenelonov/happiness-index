@@ -80,7 +80,7 @@ def seed(app, sessions: int, rng: random.Random) -> dict[str, int]:
             {
                 "session_id": sid,
                 "public_id": secrets.token_urlsafe(9),
-                "swls_raw": 20,
+                "life_raw": 20,
                 "happiness_index": rng.choice(range(0, 101, 10)),
                 **{f"trait_{t}": rng.choice([1.5, 2.5, 3.0, 3.5, 4.5]) for t in "eacno"},
                 "archetype_id": archetype,

@@ -8,7 +8,7 @@ import math
 import uuid
 from collections import Counter
 from dataclasses import dataclass, field
-from datetime import date, datetime, time, timedelta
+from datetime import UTC, date, datetime, time, timedelta
 from typing import Any
 from zoneinfo import ZoneInfo
 
@@ -67,15 +67,20 @@ class SessionFacts:
 # --- Загрузка ------------------------------------------------------------------------------------
 
 
+def _day_start_utc(day: date, timezone: str) -> datetime:
+    """Начало суток в поясе владельца, переведённое в UTC: в UTC хранит время сервер,
+    а SQLite сравнивает даты как строки и сдвиг пояса не учитывает."""
+    return datetime.combine(day, time(), ZoneInfo(timezone)).astimezone(UTC)
+
+
 def session_ids(f: Filters) -> Select:
     query = select(Session.id)
     if not f.include_internal:
         query = query.where(Session.is_internal.is_(False))
-    tz = ZoneInfo(f.timezone)
     if f.date_from:
-        query = query.where(Session.created_at >= datetime.combine(f.date_from, time(), tz))
+        query = query.where(Session.created_at >= _day_start_utc(f.date_from, f.timezone))
     if f.date_to:
-        end = datetime.combine(f.date_to + timedelta(days=1), time(), tz)
+        end = _day_start_utc(f.date_to + timedelta(days=1), f.timezone)
         query = query.where(Session.created_at < end)
     if f.utm_source == NO_UTM:
         query = query.where(Session.utm_source.is_(None))

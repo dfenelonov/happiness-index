@@ -88,9 +88,9 @@ def test_paywall_shows_session_price(client: TestClient, app: FastAPI) -> None:
 # --- POST /checkout ------------------------------------------------------------------------------
 
 
-@pytest.mark.parametrize("swls", [1, 7])  # минимальный и максимальный индекс
-def test_checkout_open_to_every_owner(client: TestClient, app: FastAPI, swls: int) -> None:
-    complete_test(client, swls=swls)
+@pytest.mark.parametrize("life", [1, 7])  # минимальный и максимальный индекс
+def test_checkout_open_to_every_owner(client: TestClient, app: FastAPI, life: int) -> None:
+    complete_test(client, life=life)
     assert checkout(client).status_code == 303
     assert len(db_rows(app, Order)) == 1 and len(events(app, "checkout_start")) == 1
 

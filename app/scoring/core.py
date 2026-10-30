@@ -21,7 +21,7 @@ class ScoringError(ValueError):
 class ScoringResult:
     """Всё, что пишется в results."""
 
-    swls_raw: int
+    life_raw: int
     happiness_index: int
     vciom_answer: str
     traits: dict[str, float]  # 1–5
@@ -61,7 +61,7 @@ def _round_half_up(numerator: int, denominator: int) -> int:
 
 
 def happiness_index(q: Questionnaire, answers: Answers) -> tuple[int, int]:
-    """SWLS: (сырая сумма, индекс 0–100 = round((S − min) / (max − min) × 100))."""
+    """Блок life: (сырая сумма, индекс 0–100 = round((S − min) / (max − min) × 100))."""
     rule = q.scoring.happiness_index
     raw = sum(_numeric_answers(q, q.block(rule.block), answers).values())
     index = _round_half_up((raw - rule.raw_min) * 100, rule.raw_max - rule.raw_min)
@@ -79,7 +79,7 @@ def vciom_answer(q: Questionnaire, answers: Answers) -> str:
 
 
 def traits(q: Questionnaire, answers: Answers) -> dict[str, float]:
-    """BFI-10: среднее пары по каждой черте, обратный пункт = (min + max) − x."""
+    """Большая пятёрка: среднее пунктов каждой черты, обратный пункт = (min + max) − x."""
     block = q.block(q.scoring.traits.block)
     values = _numeric_answers(q, block, answers)
     by_trait: dict[str, list[int]] = {}
@@ -127,11 +127,11 @@ def leaks(q: Questionnaire, scores: Mapping[str, float]) -> list[str]:
 
 
 def score(q: Questionnaire, answers: Answers) -> ScoringResult:
-    swls_raw, index = happiness_index(q, answers)
+    life_raw, index = happiness_index(q, answers)
     trait_scores = traits(q, answers)
     domains = domain_scores(q, answers)
     return ScoringResult(
-        swls_raw=swls_raw,
+        life_raw=life_raw,
         happiness_index=index,
         vciom_answer=vciom_answer(q, answers),
         traits=trait_scores,

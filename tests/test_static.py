@@ -50,6 +50,9 @@ def test_static_assets_served_with_version(client: TestClient) -> None:
 
 def test_about_method_lists_sources(client: TestClient) -> None:
     html = client.get("/about-method").text
-    assert "Satisfaction With Life Scale (Diener et al., 1985)" in html
-    assert "BFI-10 (Rammstedt &amp; John, 2007)" in html
+    assert "Методика проекта" in html
+    assert "пункты IPIP (ipip.ori.org, общественное достояние); Donnellan et al., 2006" in html
+    assert "Большой пятёрки" in html
+    for banned in ("валидирован", "научно доказ"):
+        assert banned not in html.lower() and banned not in client.get("/").text.lower()
     assert 'href="/about-method"' in client.get("/").text

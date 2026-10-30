@@ -87,65 +87,58 @@ def test_answers_rejected_without_consent(client: TestClient, app: FastAPI) -> N
 def test_first_question_full_page_and_htmx_fragment(client: TestClient) -> None:
     consent(client)
     r = client.get("/test")
-    assert "<html" in r.text and "Вопрос 1 из 26" in r.text and "Определённо да" in r.text
+    assert "<html" in r.text and "Вопрос 1 из 36" in r.text and "Определённо да" in r.text
     r = client.get("/test", headers=HTMX)
     assert "<html" not in r.text and 'id="question"' in r.text
 
 
-def test_dev_placeholder_for_licensed_text(client: TestClient) -> None:
+def test_question_texts_shown_as_in_config(client: TestClient) -> None:
     consent(client)
     r = client.post("/api/answers", data={"item_id": "vciom_1", "value": "rather_yes"})
-    assert "[SWLS, вопрос 1 — текст после проверки лицензии]" in r.text
-    assert "TODO_LICENSED_TEXT" not in r.text
-
-
-def test_placeholder_only_outside_production() -> None:
-    assert TestFlow(Q, show_placeholders=False).question("bfi_3").text == "TODO_LICENSED_TEXT"
-    dev = TestFlow(Q, show_placeholders=True)
-    assert dev.question("bfi_3").text == "[BFI, вопрос 3 — текст после проверки лицензии]"
-    assert dev.question("swls_5").text == "[SWLS, вопрос 5 — текст после проверки лицензии]"
-    assert dev.question("leak_sleep_1").text == "Чаще всего я просыпаюсь отдохнувшим"
+    assert "Моя жизнь сейчас во многом такая, какой мне хотелось бы её видеть" in r.text
+    assert "TODO" not in r.text
+    assert TestFlow(Q).question("big5_6").text == "Я обычно говорю мало"
 
 
 def test_answer_saved_and_back_upserts(client: TestClient, app: FastAPI) -> None:
     consent(client)
     client.post("/api/answers", data={"item_id": "vciom_1", "value": "rather_yes"})
-    r = client.post("/api/answers", data={"item_id": "swls_1", "value": "5"})
-    assert "Вопрос 3 из 26" in r.text
+    r = client.post("/api/answers", data={"item_id": "life_1", "value": "5"})
+    assert "Вопрос 3 из 36" in r.text
 
-    r = client.post("/api/answers", data={"item_id": "swls_2", "action": "back"})
-    assert "Вопрос 2 из 26" in r.text
+    r = client.post("/api/answers", data={"item_id": "life_2", "action": "back"})
+    assert "Вопрос 2 из 36" in r.text
     assert 'value="5" aria-pressed="true"' in r.text  # выбранный ответ подсвечен
 
-    client.post("/api/answers", data={"item_id": "swls_1", "value": "2"})
+    client.post("/api/answers", data={"item_id": "life_1", "value": "2"})
     rows = {a.item_id: a.value for a in db_rows(app, Answer)}
-    assert rows == {"vciom_1": "rather_yes", "swls_1": "2"}
+    assert rows == {"vciom_1": "rather_yes", "life_1": "2"}
 
 
 def test_back_on_first_question_stays(client: TestClient) -> None:
     consent(client)
     r = client.post("/api/answers", data={"item_id": "vciom_1", "action": "back"})
-    assert "Вопрос 1 из 26" in r.text and "← Назад" not in r.text
+    assert "Вопрос 1 из 36" in r.text and "← Назад" not in r.text
 
 
 def test_resume_by_cookie(client: TestClient, app: FastAPI) -> None:
     consent(client)
-    for item_id, value in [("vciom_1", "rather_yes"), ("swls_1", "4"), ("swls_2", "4")]:
+    for item_id, value in [("vciom_1", "rather_yes"), ("life_1", "4"), ("life_2", "4")]:
         client.post("/api/answers", data={"item_id": item_id, "value": value})
     with TestClient(app, cookies={"sid": client.cookies["sid"]}) as again:
         r = again.get("/test")
-    assert "Вопрос 4 из 26" in r.text
+    assert "Вопрос 4 из 36" in r.text
 
 
 @pytest.mark.parametrize(
     ("data", "status"),
     [
-        ({"item_id": "swls_1", "value": "8"}, 422),
-        ({"item_id": "swls_1", "value": "abc"}, 422),
-        ({"item_id": "swls_1"}, 422),
+        ({"item_id": "life_1", "value": "8"}, 422),
+        ({"item_id": "life_1", "value": "abc"}, 422),
+        ({"item_id": "life_1"}, 422),
         ({"item_id": "vciom_1", "value": "yes"}, 422),
         ({"item_id": "nope", "value": "1"}, 400),
-        ({"item_id": "bfi_1", "value": "6"}, 422),
+        ({"item_id": "big5_1", "value": "6"}, 422),
     ],
 )
 def test_invalid_answer(client: TestClient, app: FastAPI, data: dict, status: int) -> None:
@@ -164,15 +157,15 @@ def test_resume_after_all_answers_shows_finish(client: TestClient, app: FastAPI)
     consent(client)
     for item_id, value in answers_for().items():
         client.post("/api/answers", data={"item_id": item_id, "value": value})
-    assert "Считаем результат" in client.get("/test").text
+    assert "Анализируем твои ответы" in client.get("/test").text
     assert db_rows(app, Result) == []
 
 
 def test_complete_writes_result(client: TestClient, app: FastAPI) -> None:
-    location = complete_test(client, swls=7)
+    location = complete_test(client, life=7)
     [result] = db_rows(app, Result)
     assert location == f"/r/{result.public_id}" and len(result.public_id) >= 10
-    assert result.happiness_index == 100 and result.swls_raw == 35
+    assert result.happiness_index == 100 and result.life_raw == 35
     assert result.archetype_id == "steady_anchor"
     assert result.leaks == ["sleep", "relationships", "work"]
     assert result.domain_scores["money"] == 3.0
@@ -219,10 +212,10 @@ def test_guest_view_and_ref_in_new_session(client: TestClient, app: FastAPI) -> 
     assert (guest_session.utm_source, guest_session.utm_medium) == ("share", "tg")
 
 
-@pytest.mark.parametrize("swls", [1, 4, 7])  # индекс 0, 50, 100
+@pytest.mark.parametrize("life", [1, 4, 7])  # индекс 0, 50, 100
 @pytest.mark.parametrize("query", ["", "?paywall=0", "?show_paywall=false", "?mode=guest"])
-def test_owner_always_sees_paywall(client: TestClient, swls: int, query: str) -> None:
-    r = client.get(complete_test(client, swls=swls) + query)
+def test_owner_always_sees_paywall(client: TestClient, life: int, query: str) -> None:
+    r = client.get(complete_test(client, life=life) + query)
     assert 'id="paywall"' in r.text and "Получить полный отчёт" in r.text
 
 
@@ -237,10 +230,10 @@ def test_percentile_shown_after_threshold(tmp_path: Path, config_dir: Path) -> N
     edit_yaml(config_dir / "app.yaml", lambda d: d["percentile"].update(min_completed_tests=2))
     app = build_app(tmp_path, config_dir=config_dir)
     with TestClient(app, follow_redirects=False) as low:
-        low_location = complete_test(low, swls=2)
+        low_location = complete_test(low, life=2)
         assert "Выше, чем у" not in low.get(low_location).text  # 1 тест < 2
     with TestClient(app, follow_redirects=False) as high:
-        r = high.get(complete_test(high, swls=6))
+        r = high.get(complete_test(high, life=6))
     assert "Выше, чем у 50% участников" in r.text
 
 

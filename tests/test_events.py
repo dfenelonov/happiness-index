@@ -52,7 +52,7 @@ def test_test_start_logged_once_after_back(client: TestClient, app: FastAPI) -> 
     consent(client)
     client.get("/test")
     client.post("/api/answers", data={"item_id": "vciom_1", "value": "rather_yes"})
-    client.post("/api/answers", data={"item_id": "swls_1", "action": "back"})
+    client.post("/api/answers", data={"item_id": "life_1", "action": "back"})
     assert names(app).count("test_start") == 1
 
 

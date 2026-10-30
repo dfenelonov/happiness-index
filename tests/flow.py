@@ -25,13 +25,13 @@ def consent(client: TestClient, query: str = "") -> None:
     client.get(r.headers["location"])  # как браузер: после согласия — первый вопрос (test_start)
 
 
-def answers_for(swls: int = 4) -> dict:
+def answers_for(life: int = 4) -> dict:
     values: dict[str, str] = {}
     for block, item in ITEMS:
         if block.id == "vciom":
             values[item.id] = "rather_yes"
-        elif block.id == "swls":
-            values[item.id] = str(swls)
+        elif block.id == "life":
+            values[item.id] = str(life)
         else:
             values[item.id] = "3"
     return values
@@ -43,7 +43,7 @@ def run_test(client: TestClient, values: dict[str, str], headers: dict | None = 
         data = {"item_id": item.id, "value": values[item.id]}
         r = client.post("/api/answers", data=data, headers=headers or {})
         assert r.status_code == 200, (item.id, r.text)
-    assert "Считаем результат" in r.text
+    assert "Анализируем твои ответы" in r.text
     return client.post("/test/complete", headers=headers or {})
 
 

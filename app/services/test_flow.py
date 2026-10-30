@@ -4,8 +4,6 @@ from dataclasses import dataclass
 
 from app.config import Block, Item, Questionnaire
 
-LICENSED_PLACEHOLDER = "TODO_LICENSED_TEXT"
-
 
 class AnswerError(ValueError):
     pass
@@ -32,9 +30,8 @@ class Question:
 class TestFlow:
     __test__ = False  # не тестовый класс для pytest
 
-    def __init__(self, questionnaire: Questionnaire, show_placeholders: bool) -> None:
+    def __init__(self, questionnaire: Questionnaire) -> None:
         self.q = questionnaire
-        self.show_placeholders = show_placeholders
         self._order = [(b, i) for b in questionnaire.blocks for i in b.items]
         self._index = {item.id: n for n, (_, item) in enumerate(self._order)}
 
@@ -54,13 +51,7 @@ class TestFlow:
         else:
             values = range(scale.min, scale.max + 1)  # type: ignore[arg-type,operator]
             options = list(zip(map(str, values), scale.labels or [], strict=True))
-        return Question(item, block, n, self.total, self._text(item), options)
-
-    def _text(self, item: Item) -> str:
-        if self.show_placeholders and item.text == LICENSED_PLACEHOLDER:
-            scale_name, _, number = item.id.rpartition("_")
-            return f"[{scale_name.upper()}, вопрос {number} — текст после проверки лицензии]"
-        return item.text
+        return Question(item, block, n, self.total, item.text, options)
 
     def next_id(self, item_id: str) -> str | None:
         n = self._index[item_id] + 1

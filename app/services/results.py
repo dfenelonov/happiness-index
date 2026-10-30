@@ -41,7 +41,7 @@ def complete(db: DbSession, q: Questionnaire, session: Session) -> Result:
     result = Result(
         session_id=session.id,
         public_id=secrets.token_urlsafe(PUBLIC_ID_BYTES),
-        swls_raw=scored.swls_raw,
+        life_raw=scored.life_raw,
         happiness_index=scored.happiness_index,
         trait_e=scored.traits["E"],
         trait_a=scored.traits["A"],

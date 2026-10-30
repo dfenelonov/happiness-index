@@ -17,8 +17,9 @@ from tests.conftest import PROD_PROVIDER, REAL_CONFIG_DIR, SAFE_SECRETS, edit_ya
 def test_real_configs_are_valid() -> None:
     configs = load_configs(REAL_CONFIG_DIR)
     q = configs.questionnaire
-    assert len(q.items) == 26
-    assert [b.id for b in q.blocks] == ["vciom", "swls", "leaks", "bfi10"]
+    assert len(q.items) == 36
+    assert [b.id for b in q.blocks] == ["vciom", "life", "leaks", "big5"]
+    assert q.scoring.traits.items_per_trait == 4 and q.block("big5").stem is None
     assert len(q.scoring.archetype.table) == 8
     assert configs.app.pricing.ab_variants_rub == [490, 690, 990]
 
@@ -32,7 +33,7 @@ def _dup_item_id(d: dict[str, Any]) -> None:
 
 
 def _unknown_scale(d: dict[str, Any]) -> None:
-    _block(d, "swls")["scale"] = "nope"
+    _block(d, "life")["scale"] = "nope"
 
 
 def _missing_archetype(d: dict[str, Any]) -> None:
@@ -43,15 +44,15 @@ def _dup_archetype_combo(d: dict[str, Any]) -> None:
     d["scoring"]["archetype"]["table"][1].update(E="high", N="low", O="high")
 
 
-def _trait_two_reversed(d: dict[str, Any]) -> None:
-    _block(d, "bfi10")["items"][5]["reverse"] = True
+def _trait_three_items(d: dict[str, Any]) -> None:
+    _block(d, "big5")["items"].pop()  # у O остаётся 3 пункта из 4
 
 
 def _tie_break_mismatch(d: dict[str, Any]) -> None:
     d["scoring"]["domains"]["tie_break_order"].pop()
 
 
-def _swls_range_mismatch(d: dict[str, Any]) -> None:
+def _life_range_mismatch(d: dict[str, Any]) -> None:
     d["scoring"]["happiness_index"]["raw_max"] = 30
 
 
@@ -80,15 +81,15 @@ def _missing_vciom_rule(d: dict[str, Any]) -> None:
 
 
 def _vciom_rule_on_numeric_block(d: dict[str, Any]) -> None:
-    d["scoring"]["vciom"]["block"] = "swls"
+    d["scoring"]["vciom"]["block"] = "life"
 
 
-def _bfi_mixed_scales(d: dict[str, Any]) -> None:
-    _block(d, "bfi10")["items"][0]["scale"] = "agree7"
+def _big5_mixed_scales(d: dict[str, Any]) -> None:
+    _block(d, "big5")["items"][0]["scale"] = "agree7"
 
 
 def _not_big_five(d: dict[str, Any]) -> None:
-    for item in _block(d, "bfi10")["items"]:
+    for item in _block(d, "big5")["items"]:
         if item["trait"] == "A":
             item["trait"] = "X"
 
@@ -100,9 +101,9 @@ def _not_big_five(d: dict[str, Any]) -> None:
         _unknown_scale,
         _missing_archetype,
         _dup_archetype_combo,
-        _trait_two_reversed,
+        _trait_three_items,
         _tie_break_mismatch,
-        _swls_range_mismatch,
+        _life_range_mismatch,
         _missing_domain_text,
         _unknown_key,
         _labels_mismatch,
@@ -110,7 +111,7 @@ def _not_big_five(d: dict[str, Any]) -> None:
         _wrong_display_formula,
         _missing_vciom_rule,
         _vciom_rule_on_numeric_block,
-        _bfi_mixed_scales,
+        _big5_mixed_scales,
         _not_big_five,
     ],
 )
@@ -149,10 +150,16 @@ def test_broken_yaml_rejected(config_dir: Path) -> None:
         load_configs(config_dir)
 
 
-def test_placeholders_found_in_values(tmp_path: Path) -> None:
-    found = find_placeholders(REAL_CONFIG_DIR, tmp_path / "templates")
-    assert "questionnaire.yaml.blocks[1].items[0].text: TODO_LICENSED_TEXT" in found
-    assert len(found) == 15  # SWLS 5 + BFI-10 10
+def test_real_configs_have_no_placeholders(tmp_path: Path) -> None:
+    assert find_placeholders(REAL_CONFIG_DIR, tmp_path / "templates") == []
+
+
+def test_licensed_marker_no_longer_checked(config_dir: Path, tmp_path: Path) -> None:
+    edit_yaml(
+        config_dir / QUESTIONNAIRE_FILE,
+        lambda d: _block(d, "life")["items"][0].update(text="TODO_LICENSED_TEXT"),
+    )
+    assert find_placeholders(config_dir, tmp_path / "t") == []
 
 
 def test_placeholders_found_in_app_yaml(config_dir: Path, tmp_path: Path) -> None:
@@ -160,9 +167,10 @@ def test_placeholders_found_in_app_yaml(config_dir: Path, tmp_path: Path) -> Non
     assert "app.yaml.fake_door.name: TODO_LEGAL" in find_placeholders(config_dir, tmp_path / "t")
 
 
-def test_placeholders_in_comments_ignored(filled_config_dir: Path, tmp_path: Path) -> None:
-    assert "TODO_LICENSED_TEXT" in (filled_config_dir / QUESTIONNAIRE_FILE).read_text()
-    assert find_placeholders(filled_config_dir, tmp_path / "templates") == []
+def test_placeholders_in_comments_ignored(config_dir: Path, tmp_path: Path) -> None:
+    path = config_dir / "app.yaml"
+    path.write_text("# TODO_LEGAL: комментарий не блокирует\n" + path.read_text(), encoding="utf-8")
+    assert find_placeholders(config_dir, tmp_path / "templates") == []
 
 
 def test_placeholders_found_in_templates(filled_config_dir: Path, tmp_path: Path) -> None:
@@ -180,7 +188,7 @@ def test_development_starts_with_placeholders(tmp_path: Path) -> None:
 
 def test_production_refuses_placeholders(tmp_path: Path) -> None:
     settings = make_settings(tmp_path, app_env="production", **SAFE_SECRETS, **PROD_PROVIDER)
-    with pytest.raises(ConfigError, match="TODO_LICENSED_TEXT"):
+    with pytest.raises(ConfigError, match=r"legal_stub\.html: TODO_LEGAL"):
         create_app(settings)
 
 

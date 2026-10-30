@@ -1,15 +1,15 @@
 # Единственный источник правды по тесту. Код подсчёта читает правила отсюда.
-# TODO_LICENSED_TEXT — тексты стандартизированных шкал вставляет владелец после проверки лицензий.
-# Не придумывать и не переводить их самостоятельно.
+# Все тексты — собственные утверждения проекта или пункты IPIP (общественное достояние, ipip.ori.org).
+# Лицензионные шкалы не используем.
 
 version: 1
 
 scales:
-  agree5:   # для BFI-10 и утечек
+  agree5:   # для Большой пятёрки и утечек
     min: 1
     max: 5
     labels: ["Совсем не согласен", "Скорее не согласен", "Ни то ни другое", "Скорее согласен", "Полностью согласен"]
-  agree7:   # для SWLS
+  agree7:   # для индекса счастья (блок life)
     min: 1
     max: 7
     labels: ["Совершенно не согласен", "Не согласен", "Скорее не согласен", "Ни то ни другое",
@@ -22,7 +22,7 @@ scales:
       - {id: definitely_no, label: "Определённо нет", happy: false}
       - {id: hard_to_say, label: "Затрудняюсь ответить", happy: null}
 
-# Порядок блоков в тесте = порядок в этом списке (26 вопросов)
+# Порядок блоков в тесте = порядок в этом списке (36 вопросов)
 blocks:
   - id: vciom
     title: "Для начала"
@@ -31,23 +31,23 @@ blocks:
         scale: vciom5
         text: "В жизни бывает всякое: и хорошее, и плохое. Но если говорить в целом, ты счастлив или нет?"
 
-  - id: swls
+  - id: life
     title: "Твоя жизнь в целом"
-    source: "Satisfaction With Life Scale (Diener et al., 1985) — русская адаптация, проверить лицензию"
+    source: "Методика проекта"
     scale: agree7
     items:
-      - {id: swls_1, text: TODO_LICENSED_TEXT}
-      - {id: swls_2, text: TODO_LICENSED_TEXT}
-      - {id: swls_3, text: TODO_LICENSED_TEXT}
-      - {id: swls_4, text: TODO_LICENSED_TEXT}
-      - {id: swls_5, text: TODO_LICENSED_TEXT}
+      - {id: life_1, text: "Моя жизнь сейчас во многом такая, какой мне хотелось бы её видеть"}
+      - {id: life_2, text: "В целом меня устраивает, как всё складывается"}
+      - {id: life_3, text: "Мне есть чем гордиться в моей жизни"}
+      - {id: life_4, text: "Я редко ловлю себя на мысли, что живу не своей жизнью"}
+      - {id: life_5, text: "Когда я думаю о ближайшем годе, я чаще чувствую надежду, чем тревогу"}
 
   - id: leaks
     title: "Из чего складывается твой день"
     source: "Собственные утверждения проекта"
     scale: agree5
     items:
-      - {id: leak_sleep_1, domain: sleep, text: "Чаще всего я просыпаюсь отдохнувшим"}
+      - {id: leak_sleep_1, domain: sleep, text: "Сон обычно восстанавливает мои силы"}
       - {id: leak_sleep_2, domain: sleep, text: "Мне хватает энергии на то, что для меня важно"}
       - {id: leak_rel_1, domain: relationships, text: "Мне есть с кем поделиться тем, что меня волнует"}
       - {id: leak_rel_2, domain: relationships, text: "Я чувствую близость с важными для меня людьми"}
@@ -58,26 +58,35 @@ blocks:
       - {id: leak_meaning_1, domain: meaning, text: "У меня есть цели, которые меня по-настоящему вдохновляют"}
       - {id: leak_meaning_2, domain: meaning, text: "Я чувствую, что моя жизнь движется в нужную сторону"}
 
-  - id: bfi10
+  - id: big5
     title: "Какой ты"
-    source: "BFI-10 (Rammstedt & John, 2007) — русская адаптация, проверить лицензию"
+    source: "Модель Большой пятёрки, пункты IPIP (ipip.ori.org, общественное достояние); Donnellan et al., 2006"
     scale: agree5
-    stem: "Я вижу себя человеком, который…"
     items:
-      - {id: bfi_1, trait: E, reverse: true, text: TODO_LICENSED_TEXT}
-      - {id: bfi_2, trait: A, reverse: false, text: TODO_LICENSED_TEXT}
-      - {id: bfi_3, trait: C, reverse: true, text: TODO_LICENSED_TEXT}
-      - {id: bfi_4, trait: N, reverse: true, text: TODO_LICENSED_TEXT}
-      - {id: bfi_5, trait: O, reverse: true, text: TODO_LICENSED_TEXT}
-      - {id: bfi_6, trait: E, reverse: false, text: TODO_LICENSED_TEXT}
-      - {id: bfi_7, trait: A, reverse: true, text: TODO_LICENSED_TEXT}
-      - {id: bfi_8, trait: C, reverse: false, text: TODO_LICENSED_TEXT}
-      - {id: bfi_9, trait: N, reverse: false, text: TODO_LICENSED_TEXT}
-      - {id: bfi_10, trait: O, reverse: false, text: TODO_LICENSED_TEXT}
+      - {id: big5_1, trait: E, reverse: false, text: "Я душа компании"}
+      - {id: big5_2, trait: A, reverse: false, text: "Я сопереживаю другим людям"}
+      - {id: big5_3, trait: C, reverse: false, text: "Я делаю дела сразу, не откладывая"}
+      - {id: big5_4, trait: N, reverse: false, text: "Моё настроение часто меняется"}
+      - {id: big5_5, trait: O, reverse: false, text: "У меня живое воображение"}
+      - {id: big5_6, trait: E, reverse: true, text: "Я обычно говорю мало"}
+      - {id: big5_7, trait: A, reverse: true, text: "Чужие проблемы меня не особо волнуют"}
+      - {id: big5_8, trait: C, reverse: true, text: "Я часто забываю положить вещи на место"}
+      - {id: big5_9, trait: N, reverse: true, text: "Большую часть времени я чувствую себя спокойно"}
+      - {id: big5_10, trait: O, reverse: true, text: "Абстрактные идеи мне неинтересны"}
+      - {id: big5_11, trait: E, reverse: false, text: "В компании я общаюсь с множеством разных людей"}
+      - {id: big5_12, trait: A, reverse: false, text: "Я легко чувствую эмоции других людей"}
+      - {id: big5_13, trait: C, reverse: false, text: "Мне нравится порядок"}
+      - {id: big5_14, trait: N, reverse: false, text: "Меня легко расстроить"}
+      - {id: big5_15, trait: O, reverse: true, text: "Мне сложно даются абстрактные идеи"}
+      - {id: big5_16, trait: E, reverse: true, text: "В компании я предпочитаю держаться в тени"}
+      - {id: big5_17, trait: A, reverse: true, text: "Другие люди мне, по правде говоря, не очень интересны"}
+      - {id: big5_18, trait: C, reverse: true, text: "Я часто оставляю после себя беспорядок"}
+      - {id: big5_19, trait: N, reverse: true, text: "Мне редко бывает грустно"}
+      - {id: big5_20, trait: O, reverse: true, text: "Воображение — не моя сильная сторона"}
 
 scoring:
   happiness_index:
-    block: swls
+    block: life
     # индекс = round((sum - 5) / 30 * 100)
     raw_min: 5
     raw_max: 35
@@ -86,9 +95,10 @@ scoring:
     block: vciom             # ответ хранится как id варианта, в индекс не входит
 
   traits:
-    block: bfi10
+    block: big5              # Mini-IPIP: 4 пункта на черту
+    items_per_trait: 4
     reverse_formula: "6 - x"
-    aggregate: mean          # среднее пары, 1–5
+    aggregate: mean          # среднее 4 пунктов с учётом обратных, 1–5
     display_0_100: "(m - 1) / 4 * 100"
 
   domains:

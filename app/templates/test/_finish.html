@@ -1,6 +1,9 @@
-<div id="question" class="pt-10 text-center">
-  <p class="text-xl font-semibold text-stone-900">Готово! Считаем результат…</p>
-  <form method="post" action="/test/complete" hx-post="/test/complete" hx-trigger="load, submit" class="mt-6">
-    <button type="submit" class="flex min-h-[52px] w-full items-center justify-center rounded-2xl bg-amber-400 px-6 text-lg font-semibold text-stone-900">Показать результат</button>
+<div id="question" class="pt-10 text-center" role="status" aria-live="polite">
+  <div class="mx-auto h-12 w-12 animate-spin rounded-full border-4 border-amber-200 border-t-amber-500" aria-hidden="true"></div>
+  <p class="mt-6 text-xl font-semibold text-stone-900">Анализируем твои ответы…</p>
+  <p class="mt-2 text-stone-600">Считаем индекс счастья, тип и утечки</p>
+  {# Пауза перед результатом — config/app.yaml → analysis_screen_ms. #}
+  <form method="post" action="/test/complete" hx-post="/test/complete" hx-trigger="load delay:{{ app_config.analysis_screen_ms }}ms" class="mt-6">
+    <noscript><button type="submit" class="flex min-h-[52px] w-full items-center justify-center rounded-2xl bg-amber-400 px-6 text-lg font-semibold text-stone-900">Показать результат</button></noscript>
   </form>
 </div>

@@ -19,7 +19,7 @@ PROJECT_ROOT = APP_DIR.parent
 QUESTIONNAIRE_FILE = "questionnaire.yaml"
 APP_CONFIG_FILE = "app.yaml"
 REPORT_PROMPT_FILE = "report_prompt.yaml"
-PLACEHOLDER_MARKERS = ("TODO_LICENSED_TEXT", "TODO_LEGAL")
+PLACEHOLDER_MARKERS = ("TODO_LEGAL",)
 BIG_FIVE = ("E", "A", "C", "N", "O")  # совпадает с колонками results.trait_*
 INSECURE_SECRET_VALUES = frozenset({"", "change-me"})
 
@@ -155,6 +155,7 @@ class HappinessIndexRule(_Strict):
 
 class TraitsRule(_Strict):
     block: str
+    items_per_trait: int = Field(gt=0)
     reverse_formula: str
     aggregate: Literal["mean"]
     display_0_100: str
@@ -306,8 +307,11 @@ class Questionnaire(_Strict):
         if set(by_trait) != set(BIG_FIVE):
             raise ValueError(f"блок {block.id}: нужны ровно черты {BIG_FIVE}")
         for trait, items in by_trait.items():
-            if len(items) != 2 or sum(i.reverse for i in items) != 1:
-                raise ValueError(f"черта {trait}: нужно 2 вопроса, ровно один обратный")
+            if len(items) != self.scoring.traits.items_per_trait:
+                raise ValueError(
+                    f"черта {trait}: нужно {self.scoring.traits.items_per_trait} вопроса, "
+                    f"а не {len(items)}"
+                )
         if missing := set(self.scoring.archetype.traits) - set(by_trait):
             raise ValueError(f"архетип использует черты без вопросов: {sorted(missing)}")
 
@@ -513,6 +517,7 @@ class MetricsConfig(_Strict):
 class AppConfig(_Strict):
     site_name: str
     landing: Landing
+    analysis_screen_ms: int = Field(ge=0, le=5000)
     consent: Consent
     country_index: CountryIndex
     vciom_result_texts: dict[str, str] = Field(min_length=1)
@@ -617,7 +622,7 @@ def _walk_strings(node: Any, path: str) -> Iterator[tuple[str, str]]:
 
 
 def find_placeholders(config_dir: Path, templates_dir: Path) -> list[str]:
-    """Значения YAML (не комментарии) и шаблоны, где остались TODO_LICENSED_TEXT / TODO_LEGAL."""
+    """Значения YAML (не комментарии) и шаблоны, где остался TODO_LEGAL."""
     found = []
     for name in (QUESTIONNAIRE_FILE, APP_CONFIG_FILE):
         for path, value in _walk_strings(_read_yaml(config_dir / name), name):

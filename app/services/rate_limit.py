@@ -1,14 +1,20 @@
-"""Простая защита от ботов (SPEC §8): скользящее окно в памяти процесса, ключ — IP клиента.
+"""Простая защита от ботов (SPEC §8): скользящее окно в памяти процесса.
+
+Ключ — сессия (cookie sid), без неё — IP. Только по IP нельзя: за одним адресом мобильного
+оператора (CGNAT) или офиса тест одновременно проходят разные люди.
 
 Работает в пределах одного процесса uvicorn — так и запускаем MVP (docs/DEPLOY.md).
 """
 
+import hashlib
 import threading
 import time
 from collections import deque
 from collections.abc import Callable
 
 from fastapi import HTTPException, Request
+
+from app.services.sessions import SID_COOKIE
 
 WINDOW_SECONDS = 60.0
 MAX_KEYS = 50_000  # при превышении чистим пустые окна, чтобы память не росла
@@ -41,11 +47,15 @@ class RateLimiter:
 
 
 def rate_limit(bucket: str) -> Callable[[Request], None]:
-    """FastAPI-зависимость: 429, если с этого IP больше лимита запросов в минуту."""
+    """FastAPI-зависимость: 429, если у сессии (или IP без сессии) больше лимита в минуту."""
 
     def dependency(request: Request) -> None:
         limiter: RateLimiter = request.app.state.rate_limiter
-        key = request.client.host if request.client else "unknown"
+        sid = request.cookies.get(SID_COOKIE)
+        if sid:
+            key = "sid:" + hashlib.sha256(sid.encode()).hexdigest()[:32]
+        else:
+            key = "ip:" + (request.client.host if request.client else "unknown")
         if not limiter.allow(bucket, key):
             raise HTTPException(
                 429,

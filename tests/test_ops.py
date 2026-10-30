@@ -98,3 +98,18 @@ def test_events_rate_limited(client: TestClient, app: FastAPI) -> None:
     assert client.post("/api/events", json=body).status_code == 204
     r = client.post("/api/events", json=body)
     assert r.status_code == 429 and r.headers["retry-after"] == "60"
+
+
+def test_rate_limit_is_per_session_not_shared_ip(app: FastAPI) -> None:
+    """Два человека за одним IP (CGNAT) не мешают друг другу; без cookie — лимит на IP."""
+    app.state.rate_limiter.limits["events"] = 1
+    body = {"name": "share_click", "props": {"channel": "vk"}}
+    with TestClient(app) as first, TestClient(app) as second:  # один и тот же IP
+        first.get("/")
+        second.get("/")
+        assert first.post("/api/events", json=body).status_code == 204
+        assert second.post("/api/events", json=body).status_code == 204
+        assert first.post("/api/events", json=body).status_code == 429
+    with TestClient(app) as anonymous:
+        assert anonymous.post("/api/events", json=body).status_code == 204
+        assert anonymous.post("/api/events", json=body).status_code == 429

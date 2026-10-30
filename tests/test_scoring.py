@@ -18,23 +18,23 @@ from app.scoring import (
 from tests.conftest import REAL_CONFIG_DIR
 
 Q: Questionnaire = load_configs(REAL_CONFIG_DIR).questionnaire
-SWLS = [i.id for i in Q.block("swls").items]
-BFI = Q.block("bfi10").items
+LIFE = [i.id for i in Q.block("life").items]
+BIG5 = Q.block("big5").items
 LEAK_ITEMS = Q.block("leaks").items
 
 
 def neutral_answers() -> dict[str, Any]:
-    """Полный набор ответов «по середине»: индекс 50, все черты 3.0, домены 3.0, без флага."""
+    """Полный набор ответов «по середине»: индекс 50, все черты 3.0, домены 3.0."""
     answers: dict[str, Any] = {"vciom_1": "rather_yes"}
-    answers |= dict.fromkeys(SWLS, 4)
+    answers |= dict.fromkeys(LIFE, 4)
     answers |= {i.id: 3 for i in LEAK_ITEMS}
-    answers |= {i.id: 3 for i in BFI}
+    answers |= {i.id: 3 for i in BIG5}
     return answers
 
 
 def set_trait(answers: dict[str, Any], trait: str, direct: int, reversed_scored: int) -> None:
-    """Пара черты: прямой пункт = direct, обратный после разворота = reversed_scored."""
-    for item in BFI:
+    """Пункты черты: прямые = direct, обратные после разворота = reversed_scored."""
+    for item in BIG5:
         if item.trait == trait:
             answers[item.id] = 6 - reversed_scored if item.reverse else direct
 
@@ -44,7 +44,7 @@ def set_domain(answers: dict[str, Any], domain: str, *values: int) -> None:
     answers.update(zip(items, values, strict=True))
 
 
-# --- SWLS ----------------------------------------------------------------------------------------
+# --- Индекс счастья (блок life) -------------------------------------------------------------
 
 
 @pytest.mark.parametrize(
@@ -59,27 +59,45 @@ def set_domain(answers: dict[str, Any], domain: str, *values: int) -> None:
     ],
 )
 def test_happiness_index(values: list[int], raw: int, index: int) -> None:
-    answers = neutral_answers() | dict(zip(SWLS, values, strict=True))
+    answers = neutral_answers() | dict(zip(LIFE, values, strict=True))
     assert happiness_index(Q, answers) == (raw, index)
 
 
 def test_happiness_index_accepts_stored_strings() -> None:
-    answers = neutral_answers() | dict.fromkeys(SWLS, "7")
+    answers = neutral_answers() | dict.fromkeys(LIFE, "7")
     assert happiness_index(Q, answers) == (35, 100)
 
 
-# --- BFI-10 --------------------------------------------------------------------------------------
+# --- Большая пятёрка (Mini-IPIP, блок big5) ------------------------------------------------------
+
+# Ключи Mini-IPIP (Donnellan et al., 2006): сколько обратных пунктов у каждой черты.
+REVERSED_PER_TRAIT = {"E": 2, "A": 2, "C": 2, "N": 2, "O": 3}
 
 
 @pytest.mark.parametrize("trait", ["E", "A", "C", "N", "O"])
-def test_reverse_item_is_six_minus_x(trait: str) -> None:
+def test_four_items_per_trait_with_mini_ipip_keys(trait: str) -> None:
+    items = [i for i in BIG5 if i.trait == trait]
+    assert len(items) == 4
+    assert sum(i.reverse for i in items) == REVERSED_PER_TRAIT[trait]
+
+
+@pytest.mark.parametrize("trait", ["E", "A", "C", "N", "O"])
+def test_reverse_items_are_six_minus_x(trait: str) -> None:
     answers = neutral_answers()
-    direct = next(i for i in BFI if i.trait == trait and not i.reverse)
-    reverse = next(i for i in BFI if i.trait == trait and i.reverse)
-    answers[direct.id], answers[reverse.id] = 4, 2  # 2 после разворота = 4
+    set_trait(answers, trait, 4, 4)  # обратные отвечены «2» → после разворота 4
     assert traits(Q, answers)[trait] == 4.0
-    answers[direct.id], answers[reverse.id] = 5, 5  # 5 после разворота = 1
-    assert traits(Q, answers)[trait] == 3.0
+    for item in BIG5:  # все пункты черты ответили «5»: обратные превращаются в 1
+        if item.trait == trait:
+            answers[item.id] = 5
+    reversed_count = REVERSED_PER_TRAIT[trait]
+    assert traits(Q, answers)[trait] == (5 * (4 - reversed_count) + 1 * reversed_count) / 4
+
+
+def test_trait_is_mean_of_four_items() -> None:
+    # Экстраверсия: big5_1 «душа компании» 5, big5_6 «говорю мало» (обр.) 1 → 5,
+    # big5_11 4, big5_16 «держусь в тени» (обр.) 2 → 4. Среднее = (5 + 5 + 4 + 4) / 4 = 4.5
+    answers = neutral_answers() | {"big5_1": 5, "big5_6": 1, "big5_11": 4, "big5_16": 2}
+    assert traits(Q, answers)["E"] == 4.5
 
 
 def test_trait_extremes() -> None:
@@ -92,7 +110,17 @@ def test_trait_extremes() -> None:
 
 @pytest.mark.parametrize(
     ("mean", "display"),
-    [(1.0, 0), (1.5, 13), (2.5, 38), (3.0, 50), (3.5, 63), (4.5, 88), (5.0, 100)],
+    [
+        (1.0, 0),
+        (1.25, 6),
+        (1.5, 13),
+        (2.5, 38),
+        (3.0, 50),
+        (3.5, 63),
+        (4.5, 88),
+        (4.75, 94),
+        (5.0, 100),
+    ],
 )
 def test_trait_display_rounds_half_up(mean: float, display: int) -> None:
     assert trait_display(mean, Q.scales["agree5"]) == display
@@ -154,7 +182,7 @@ def test_leaks_lowest_with_tie_break(scores: dict[str, float], expected: list[st
 
 def test_score_neutral() -> None:
     result = score(Q, neutral_answers())
-    assert result.swls_raw == 20
+    assert result.life_raw == 20
     assert result.happiness_index == 50
     assert result.vciom_answer == "rather_yes"
     assert result.leaks == ["sleep", "relationships", "work"]
@@ -163,7 +191,7 @@ def test_score_neutral() -> None:
 def test_result_fields_match_results_table() -> None:
     dumped = asdict(score(Q, neutral_answers()))
     assert set(dumped) == {
-        "swls_raw",
+        "life_raw",
         "happiness_index",
         "vciom_answer",
         "traits",
@@ -181,15 +209,15 @@ def test_vciom_all_options(option: str) -> None:
 @pytest.mark.parametrize(
     ("patch", "message"),
     [
-        ({"swls_1": 8}, "вне шкалы"),
-        ({"swls_1": 0}, "вне шкалы"),
-        ({"bfi_1": 6}, "вне шкалы"),
+        ({"life_1": 8}, "вне шкалы"),
+        ({"life_1": 0}, "вне шкалы"),
+        ({"big5_1": 6}, "вне шкалы"),
         ({"leak_sleep_1": 6}, "вне шкалы"),
-        ({"bfi_2": 0}, "вне шкалы"),
-        ({"swls_1": True}, "некорректный"),
-        ({"swls_1": "abc"}, "некорректный"),
-        ({"swls_1": None}, "некорректный"),
-        ({"swls_1": 2.5}, "некорректный"),
+        ({"big5_2": 0}, "вне шкалы"),
+        ({"life_1": True}, "некорректный"),
+        ({"life_1": "abc"}, "некорректный"),
+        ({"life_1": None}, "некорректный"),
+        ({"life_1": 2.5}, "некорректный"),
         ({"vciom_1": "yes"}, "неизвестный вариант"),
     ],
 )
@@ -198,7 +226,7 @@ def test_invalid_answers_rejected(patch: dict[str, Any], message: str) -> None:
         score(Q, neutral_answers() | patch)
 
 
-@pytest.mark.parametrize("missing", ["vciom_1", "swls_5", "leak_meaning_2", "bfi_10"])
+@pytest.mark.parametrize("missing", ["vciom_1", "life_5", "leak_meaning_2", "big5_20"])
 def test_missing_answer_rejected(missing: str) -> None:
     answers = neutral_answers()
     del answers[missing]

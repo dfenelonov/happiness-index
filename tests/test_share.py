@@ -101,7 +101,7 @@ def test_copy_and_card_links(client: TestClient) -> None:
 
 
 def test_telegram_share_text(client: TestClient) -> None:
-    location = complete_test(client, swls=7)
+    location = complete_test(client, life=7)
     query = parse_qs(urlparse(_href(client.get(location).text, "tg")).query)
     assert query["text"] == ["Мой индекс счастья — 100. А какой у тебя?"]
 

@@ -171,7 +171,7 @@ def test_internal_sessions_excluded_by_default(client: TestClient, app: FastAPI)
     make_external(app)
     with app.state.session_factory() as db:
         [f] = load_facts(db, Filters())
-    assert f.completed and f.max_question == 26
+    assert f.completed and f.max_question == 36
 
 
 def test_filters(app: FastAPI) -> None:
@@ -398,8 +398,9 @@ def test_seed_refuses_production(tmp_path: Path, monkeypatch) -> None:
 
 def test_period_boundaries_in_moscow_time(app: FastAPI) -> None:
     moscow = ZoneInfo("Europe/Moscow")
-    late_evening = datetime(2026, 10, 30, 23, 30, tzinfo=moscow)  # по UTC это ещё 30-е 20:30
-    after_midnight = datetime(2026, 10, 31, 0, 30, tzinfo=moscow)  # по UTC — 30-е 21:30
+    # Сервер хранит время в UTC: 30-е 23:30 и 31-е 00:30 по Москве — это 30-е 20:30 и 21:30 UTC.
+    late_evening = datetime(2026, 10, 30, 23, 30, tzinfo=moscow).astimezone(UTC)
+    after_midnight = datetime(2026, 10, 31, 0, 30, tzinfo=moscow).astimezone(UTC)
     with app.state.session_factory() as db:
         db.add_all(
             [

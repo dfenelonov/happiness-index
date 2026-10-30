@@ -80,9 +80,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.settings = settings
     app.state.questionnaire = configs.questionnaire
     app.state.app_config = configs.app
-    app.state.test_flow = TestFlow(
-        configs.questionnaire, show_placeholders=not settings.is_production
-    )
+    app.state.test_flow = TestFlow(configs.questionnaire)
     app.state.templates = Jinja2Templates(directory=settings.templates_dir)
     app.state.rate_limiter = RateLimiter(dict(configs.app.rate_limits))
     app.state.payment_gateway = make_gateway(settings)
