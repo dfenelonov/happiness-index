@@ -13,14 +13,19 @@ export async function getResult(id: string) {
 }
 
 /**
- * «Счастливее X% участников». Пока настоящих результатов меньше порога, сравниваем вместе
- * с синтетическим seed и честно помечаем это на странице.
+ * «Счастливее X% участников». Пока настоящих результатов (включая этот) меньше порога
+ * `percentile.real_results_threshold`, сравниваем вместе с синтетическим seed — страница показывает
+ * пометку по `usesSeed`. С порога seed исключается, пометка пропадает. Сам результат в сравнение не входит.
  */
-export async function resultPercentile(id: string, index: number): Promise<{ value: number | null; usesSeed: boolean }> {
+export async function resultPercentile(
+  id: string,
+  index: number,
+  threshold = appConfig().percentile.real_results_threshold,
+): Promise<{ value: number | null; usesSeed: boolean }> {
   const db = getDb();
   const t = schema.results;
-  const [{ real }] = await db.select({ real: count() }).from(t).where(and(eq(t.isSeed, false), ne(t.id, id)));
-  const usesSeed = real < appConfig().percentile.real_results_threshold;
+  const [{ real }] = await db.select({ real: count() }).from(t).where(eq(t.isSeed, false));
+  const usesSeed = real < threshold;
   const scope = usesSeed ? ne(t.id, id) : and(eq(t.isSeed, false), ne(t.id, id));
   const [{ total }] = await db.select({ total: count() }).from(t).where(scope);
   const [{ below }] = await db.select({ below: count() }).from(t).where(and(scope, lt(t.index, index)));

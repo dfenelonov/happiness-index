@@ -65,7 +65,13 @@ npm run build       # production-сборка
 npm run test:e2e    # Playwright: лендинг → тест → результат → оплата (мок) → отчёт → админка
 npm run smoke       # HTTP-smoke всего пути без порта и браузера (после npm run build)
 npm run screenshots # скриншоты всех экранов → docs/screenshots (после npm run build)
+npm run texts:review # docs/TEXTS_REVIEW.md — все тексты на вычитку с пометками «новый/изменён»
 ```
+
+В GitHub Actions (`.github/workflows/ci.yml`) на каждый push и PR это идёт автоматически, на моках и без
+секретов: проверки и smoke, e2e со скриншотами (артефакты `screenshots` и `playwright-report`), сборка
+Docker-образа и запуск контейнера с проверкой главной страницы. Порт, хост и адрес сервера для e2e
+задаются через `E2E_PORT`, `E2E_HOST`, `E2E_BASE_URL` (см. `playwright.config.ts`).
 
 Перед первым e2e поставь браузер: `npx playwright install chromium`. E2E поднимает production-сборку на
 порту 3100 с отдельной базой `data/e2e.db`.

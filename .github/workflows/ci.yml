@@ -1,0 +1,104 @@
+# CI для основной версии (web/). Всё на моках: оплата, LLM, письма, Метрика — секреты не нужны.
+name: ci
+
+on:
+  push:
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    working-directory: web
+
+env:
+  NEXT_TELEMETRY_DISABLED: 1
+
+jobs:
+  checks:
+    name: lint · typecheck · unit · smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+      - name: Smoke (in-process HTTP, весь путь на моках)
+        run: npm run smoke
+
+  e2e:
+    name: e2e · screenshots
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm run build
+      - name: Playwright e2e
+        run: npm run test:e2e
+      - name: Screenshots
+        if: success() || failure()
+        run: npm run screenshots
+        env:
+          PW_REPORT_DIR: playwright-report-screenshots
+      - name: Upload screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: screenshots
+          path: web/docs/screenshots
+          if-no-files-found: warn
+      - name: Upload Playwright reports and traces
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            web/playwright-report
+            web/playwright-report-screenshots
+            web/test-results
+          if-no-files-found: warn
+
+  docker:
+    name: docker compose build · healthcheck
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker compose build app
+      - name: Start container
+        run: docker compose up -d app
+      - name: Healthcheck — главная страница
+        run: |
+          for i in $(seq 1 60); do
+            if curl -fsS http://127.0.0.1:3000/ -o /tmp/index.html && grep -q "Пройти тест" /tmp/index.html; then
+              echo "главная отвечает"
+              curl -fsS http://127.0.0.1:3000/api/health
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "главная не ответила за 120 с"
+          exit 1
+      - name: Container logs
+        if: always()
+        run: docker compose logs app
+      - name: Stop
+        if: always()
+        run: docker compose down -v

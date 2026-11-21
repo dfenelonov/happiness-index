@@ -7,8 +7,8 @@ const compat = new FlatCompat({ baseDirectory: dirname(fileURLToPath(import.meta
 const config = [
   { ignores: [".next/**", "node_modules/**", "test-results/**", "playwright-report/**", "drizzle/**", "next-env.d.ts"] },
   ...compat.extends("next/core-web-vitals", "next/typescript"),
-  // тесты конфига намеренно портят сырой YAML — там типизация мешает
-  { files: ["tests/**/*.ts"], rules: { "@typescript-eslint/no-explicit-any": "off" } },
+  // тесты конфига портят сырой YAML, texts-review читает YAML Python-версии — там типизация мешает
+  { files: ["tests/**/*.ts", "scripts/texts-review.ts"], rules: { "@typescript-eslint/no-explicit-any": "off" } },
 ];
 
 export default config;

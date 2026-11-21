@@ -4,7 +4,9 @@
 services:
   app:
     build: .
-    env_file: .env
+    env_file:
+      - path: .env
+        required: false   # без .env (например, в CI) всё работает на моках
     environment:
       DATABASE_URL: file:/data/app.db
       APP_INTERNAL_URL: http://127.0.0.1:3000
@@ -24,7 +26,7 @@ services:
     profiles: ["https"]
     depends_on: [app]
     environment:
-      DOMAIN: ${DOMAIN:?задай DOMAIN в .env}
+      DOMAIN: ${DOMAIN:-localhost}   # задай свой домен в .env
     ports:
       - "80:80"
       - "443:443"

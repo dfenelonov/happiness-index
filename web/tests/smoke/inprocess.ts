@@ -133,6 +133,7 @@ async function main() {
   r = await call("GET", `/result/${resultId}`);
   check("страница результата 200", r.status === 200, String(r.status));
   check("результат: индекс, перцентиль, тип, утечки, ВЦИОМ", ["из 100", "участников", "Тип личности", "Три главные утечки", "россиян"].every((s) => r.text.includes(s)));
+  check("пометка о модельном распределении, пока настоящих результатов мало", r.text.includes("модельным распределением"));
   check("пейволл и фейковая дверь у владельца", r.text.includes('data-testid="paywall"') && r.text.includes('data-testid="fake-door"'));
   r = await call("GET", `/result/${resultId}?price=990`);
   check("?price=990 переопределяет цену", r.text.includes(">990<!-- --> ₽") || r.text.includes("990 ₽"));
