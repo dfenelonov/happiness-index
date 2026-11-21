@@ -67,6 +67,7 @@ function Footer() {
           <Link href="/legal/offer" className="hover:text-ink">Оферта</Link>
           <Link href="/legal/privacy" className="hover:text-ink">Политика обработки ПДн</Link>
           <Link href="/legal/consent" className="hover:text-ink">Согласие на обработку ПДн</Link>
+          <Link href="/restore" className="hover:text-ink">Восстановить доступ к разбору</Link>
         </nav>
       </div>
     </footer>

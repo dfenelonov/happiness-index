@@ -27,7 +27,7 @@ export default async function QaGallery() {
   ] as const;
 
   const order = (label: string) => qa?.orders.find((o) => o.label === label);
-  const sample = qa?.byType[0].levels[1];
+  const sample = qa?.notPurchased;
 
   return (
     <div className="mx-auto max-w-5xl space-y-6 px-5 pb-10 sm:px-8" data-testid="qa">
@@ -121,6 +121,11 @@ export default async function QaGallery() {
                 </L>
               ))}
               <L href={`/result/${sample.id}?open=tracker`}>Модалка «{app.fake_door.name}»</L>
+              {qa!.purchased && (
+                <L href={`/result/${qa!.purchased.id}`}>Результат после покупки: вместо пейволла — «Открыть мой разбор»</L>
+              )}
+              <L href="/restore">«Уже покупал? Восстановить доступ» (письмо — в почтовом ящике)</L>
+              <L href="/dev/mailbox">Почтовый ящик (мок)</L>
               <span className="text-xs text-muted">?price= закрепляет цену в cookie этого браузера — проверь все три по очереди.</span>
             </Section>
           )}

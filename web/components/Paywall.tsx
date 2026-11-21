@@ -78,6 +78,9 @@ export function Paywall({ resultId, price, title, bullets, leaks, archetype, ref
               </li>
             ))}
           </ul>
+          <Link href="/restore" className="mt-6 inline-block text-sm text-[#e9c9b8] underline" data-testid="restore-link">
+            Уже покупал? Восстановить доступ
+          </Link>
         </div>
         <div className="relative">
           <div className="pointer-events-none rounded-2xl bg-cream/95 p-6 text-ink blur-[3px] select-none" aria-hidden>

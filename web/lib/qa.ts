@@ -113,7 +113,13 @@ export async function loadQa(anonId: string) {
   const results = await db.select().from(schema.results).where(sql`anon_id = ${anonId}`);
   const [guest] = await db.select().from(schema.results).where(like(schema.results.anonId, `${QA_PREFIX}guest-%`)).limit(1);
   const orders = await db
-    .select({ id: schema.orders.id, status: schema.orders.status, paymentId: schema.orders.providerPaymentId, report: schema.reports.status })
+    .select({
+      id: schema.orders.id,
+      resultId: schema.orders.resultId,
+      status: schema.orders.status,
+      paymentId: schema.orders.providerPaymentId,
+      report: schema.reports.status,
+    })
     .from(schema.orders)
     .leftJoin(schema.reports, sql`${schema.reports.orderId} = ${schema.orders.id}`)
     .where(sql`${schema.orders.anonId} = ${anonId}`);
@@ -122,7 +128,18 @@ export async function loadQa(anonId: string) {
     id: a.id,
     name: a.name,
     poles: AXIS_IDS.map((axis) => `${q.scoring.axes.list[axis].name}: ${a.when[axis] === "high" ? "↑" : "↓"}`).join(" · "),
-    levels: (["low", "mid", "high"] as const).map((level) => results.find((r) => r.archetype === a.id && r.level === level && r.id)),
+    levels: (["low", "mid", "high"] as const).map((level) =>
+      results.find((r) => r.archetype === a.id && r.level === level && !orders.some((o) => o.resultId === r.id)),
+    ),
   }));
-  return { byType, guest: guest ?? null, orders: orders.map((o) => ({ ...o, label: label(o.paymentId) })), any: results[0] ?? null };
+  const purchased = new Set(orders.map((o) => o.resultId));
+  return {
+    byType,
+    guest: guest ?? null,
+    orders: orders.map((o) => ({ ...o, label: label(o.paymentId) })),
+    any: results[0] ?? null,
+    // пейволл виден только там, где разбор ещё не куплен
+    notPurchased: results.find((r) => !purchased.has(r.id)) ?? null,
+    purchased: results.find((r) => purchased.has(r.id)) ?? null,
+  };
 }

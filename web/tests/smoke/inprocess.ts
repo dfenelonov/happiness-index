@@ -186,6 +186,17 @@ async function main() {
   r = await call("GET", `/api/report/${checkout.orderId}/pdf`);
   check("PDF", r.status === 200 && r.body.subarray(0, 4).toString() === "%PDF", `${r.body.length} байт`);
 
+  r = await call("GET", `/result/${resultId}`);
+  check("купивший видит «Открыть мой разбор» вместо пейволла", r.text.includes('data-testid="my-report"') && !r.text.includes('data-testid="paywall"') && r.text.includes(`/report/${checkout.orderId}`));
+  r = await call("POST", "/api/checkout", { body: JSON.stringify({ resultId, email: "buyer@example.ru", offerAccepted: true }) });
+  check("второй платёж за оплаченный результат → 409", r.status === 409);
+  check("страница «Восстановить доступ»", (await call("GET", "/restore")).status === 200);
+  r = await call("POST", "/api/restore", { body: JSON.stringify({ email: "BUYER@example.ru" }) });
+  const r2 = await call("POST", "/api/restore", { body: JSON.stringify({ email: "nobody@example.ru" }) });
+  check("восстановление: одинаковый ответ, есть покупки или нет", r.status === 200 && r2.status === 200 && json(r).message === json(r2).message);
+  r = await call("GET", "/dev/mailbox", { auth: `admin:${process.env.ADMIN_PASSWORD}` });
+  check("/dev/mailbox: письмо с разбором и письмо со ссылками", r.text.includes("Твой персональный разбор готов") && r.text.includes("Ссылки на твои разборы") && r.text.includes(`/report/${checkout.orderId}`));
+
   check("админка без пароля → 401", (await call("GET", "/admin")).status === 401);
   r = await call("GET", "/admin", { auth: `admin:${process.env.ADMIN_PASSWORD}` });
   check("админка 200", r.status === 200);

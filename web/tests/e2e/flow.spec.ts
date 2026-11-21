@@ -80,6 +80,13 @@ test("лендинг → тест (назад, продолжение после
   await page.getByTestId("fake-door-open").click(); // купил → клик «подписка»
   await page.keyboard.press("Escape");
 
+  // Вернулся на результат — вместо пейволла ссылка на купленный разбор
+  const reportUrl = page.url();
+  await page.goto(resultUrl);
+  await expect(page.getByTestId("paywall")).toHaveCount(0);
+  await page.getByRole("link", { name: "Открыть мой разбор" }).click();
+  await expect(page).toHaveURL(reportUrl);
+
   // Гость видит результат друга без пейволла
   const guest = await browser.newContext();
   const g = await guest.newPage();

@@ -41,6 +41,12 @@ export async function createOrder(opts: {
   const [result] = await db.select().from(schema.results).where(eq(schema.results.id, opts.resultId));
   if (!result || result.isSeed) throw new CheckoutError("Результат не найден", 404);
   if (result.anonId !== visitor.anonId) throw new CheckoutError("Купить разбор можно только к своему результату", 403);
+  const [paid] = await db
+    .select({ id: schema.orders.id })
+    .from(schema.orders)
+    .where(and(eq(schema.orders.resultId, result.id), eq(schema.orders.status, "paid")))
+    .limit(1);
+  if (paid) throw new CheckoutError("Разбор к этому результату уже куплен — открой его по ссылке на странице результата", 409);
 
   const orderId = randomUUID();
   const a = visitor.attribution;

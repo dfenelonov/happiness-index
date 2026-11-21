@@ -8,6 +8,7 @@ import { ShareBlock } from "@/components/ShareBlock";
 import { TrackOnMount } from "@/components/Track";
 import { AXIS_IDS, appConfig, questionnaire } from "@/lib/config";
 import { appUrl } from "@/lib/report/generate";
+import { paidOrderForResult } from "@/lib/purchases";
 import { getResult, resultPercentile } from "@/lib/results";
 import { axisDisplay, countryLine, indexLevel, poleOf } from "@/lib/scoring";
 import { getVisitor } from "@/lib/visitor";
@@ -42,6 +43,8 @@ export default async function ResultPage({ params, searchParams }: Props) {
   const level = indexLevel(q, r.index);
   const direct = q.direct_options.find((o) => o.id === r.direct);
   const shareUrl = `${appUrl()}/result/${r.id}`;
+  // уже купленный разбор: вместо пейволла — ссылка на него (повторно купить нельзя)
+  const paid = owner ? await paidOrderForResult(r.id) : null;
 
   return (
     <div className="mx-auto max-w-5xl px-5 sm:px-8">
@@ -144,16 +147,27 @@ export default async function ResultPage({ params, searchParams }: Props) {
       {owner && (
         <>
           <ShareBlock resultId={r.id} shareUrl={shareUrl} index={r.index} archetype={arch.name} />
-          <Paywall
-            resultId={r.id}
-            price={visitor.price}
-            title={app.paywall.title}
-            bullets={app.paywall.bullets}
-            leaks={r.leaks.map((z) => q.zones[z].name)}
-            archetype={arch.name}
-            refundDays={app.pricing.refund_days}
-            initiallyOpen={open === "checkout"}
-          />
+          {paid ? (
+            <section className="mt-8 overflow-hidden rounded-[1.75rem] bg-gradient-to-br from-[#2b1d2e] via-[#3d2440] to-[#5a2f4a] p-8 text-cream sm:p-12" data-testid="my-report">
+              <p className="eyebrow !text-[#e9c9b8]">Персональный разбор</p>
+              <h2 className="mt-3 font-serif text-3xl font-semibold sm:text-4xl">Твой разбор уже готов</h2>
+              <p className="mt-3 text-[#eadbe0]">Ссылку мы также отправили на почту, указанную при оплате.</p>
+              <Link href={`/report/${paid.id}`} className="btn-primary mt-7 text-lg">
+                Открыть мой разбор
+              </Link>
+            </section>
+          ) : (
+            <Paywall
+              resultId={r.id}
+              price={visitor.price}
+              title={app.paywall.title}
+              bullets={app.paywall.bullets}
+              leaks={r.leaks.map((z) => q.zones[z].name)}
+              archetype={arch.name}
+              refundDays={app.pricing.refund_days}
+              initiallyOpen={open === "checkout"}
+            />
+          )}
           <FakeDoor
             source="result"
             resultId={r.id}

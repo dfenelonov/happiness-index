@@ -118,3 +118,12 @@ export const leads = sqliteTable("leads", {
   priceVariant: integer("price_variant"),
   createdAt: createdAt(),
 });
+
+/** Почтовый ящик мок-режима (MAIL_PROVIDER=mock): письма не уходят, а видны в /dev/mailbox. */
+export const mailOutbox = sqliteTable("mail_outbox", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  to: text("to_email").notNull(),
+  subject: text("subject").notNull(),
+  text: text("body").notNull(),
+  createdAt: createdAt(),
+});
