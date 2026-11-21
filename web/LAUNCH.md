@@ -126,14 +126,74 @@
    - Caddy сам выпустит сертификат Let's Encrypt для `DOMAIN` и будет его продлевать.
    - Порты 80 и 443 должны быть открыты в firewall или группе безопасности.
 4. Проверка: `curl https://<домен>/api/health` → `{"ok":true}`. Пройди тест и оплату с телефона.
-5. **Бэкап базы.** SQLite лежит в docker-томе `app-data`. Ежедневная копия (cron):
-   ```bash
-   docker compose exec -T app node -e "require('fs').copyFileSync('/data/app.db','/data/backup-'+new Date().toISOString().slice(0,10)+'.db')"
-   ```
-   Храни копии вне сервера: Object Storage в Yandex Cloud или S3 в Selectel и Timeweb.
+5. **Бэкапы** — см. раздел «Бэкапы и восстановление» ниже. Сервис `backup` в compose поднимается вместе с
+   приложением.
 6. **Обновление:** `git pull && docker compose --profile https up -d --build`. Миграции применяются при старте.
 
 Без своего домена можно временно открыть `http://<IP>:3000`, но ЮKassa требует https для вебхуков.
+
+## Алерты в Telegram
+
+Повод для алерта:
+- вебхук оплаты отклонён (неверная подпись, чужой или неизвестный платёж) или упал с ошибкой;
+- платёж есть, а заказа в базе нет;
+- сумма платежа не совпала с заказом;
+- заказ оплачен, а отчёта нет дольше 10 минут;
+- всплеск ответов 5xx (10 за 5 минут);
+- бэкап не удался или не настроен.
+
+Один и тот же повод — не чаще раза в 10 минут. В алертах нет email и ответов, только id и суммы.
+
+1. В Telegram напиши [@BotFather](https://t.me/BotFather) → `/newbot` → получишь токен вида `123456:ABC…`.
+2. Напиши своему боту любое сообщение, затем открой
+   `https://api.telegram.org/bot<токен>/getUpdates` — в ответе `"chat":{"id": …}` — это твой chat id.
+3. В `.env`: `TELEGRAM_ALERT_BOT_TOKEN=<токен>`, `TELEGRAM_ALERT_CHAT_ID=<chat id>`, перезапусти приложение.
+4. Проверка: отправь вебхук с неверной подписью —
+   `curl -X POST https://<домен>/api/webhooks/payment -d '{"object":{"id":"test"}}'`.
+   Через пару секунд придёт «вебхук оплаты отклонён». Без токена алерты пишутся в лог: `docker compose logs app | grep '"event":"alert"'`.
+
+Пороги — `config/app.yaml` → `alerts` и `report.alert_no_report_minutes`.
+
+## Бэкапы и восстановление
+
+Сервис `backup` (тот же образ) раз в сутки делает согласованный снимок SQLite без остановки сайта
+(`VACUUM INTO`), сжимает и кладёт в S3-совместимое хранилище. Дампы старше 14 дней удаляются
+(`config/app.yaml` → `backup`). Первый бэкап — сразу при старте сервиса. При ошибке приходит алерт.
+
+**Настройка (Yandex Object Storage):**
+1. Консоль Yandex Cloud → Object Storage → создай **приватный** бакет, например `happiness-backups`.
+2. Сервисный аккаунт с ролью `storage.editor` → «Создать статический ключ доступа» → ID ключа и секрет.
+3. В `.env`:
+   ```
+   BACKUP_S3_ENDPOINT=https://storage.yandexcloud.net
+   BACKUP_S3_REGION=ru-central1
+   BACKUP_S3_BUCKET=happiness-backups
+   BACKUP_S3_ACCESS_KEY_ID=...
+   BACKUP_S3_SECRET_ACCESS_KEY=...
+   ```
+   Для Selectel: `BACKUP_S3_ENDPOINT=https://s3.ru-1.storage.selcloud.ru`, `BACKUP_S3_REGION=ru-1`, ключи — из
+   панели «Объектное хранилище» → «Пользователи».
+4. `docker compose up -d backup`, затем `docker compose logs backup` — должна быть строка `"event":"backup_done"`
+   с ключом файла.
+
+**Восстановление** (например, после потери сервера):
+```bash
+docker compose stop app                                   # базу нельзя менять под работающим приложением
+docker compose run --rm backup node --import tsx scripts/restore.ts --list
+docker compose run --rm backup node --import tsx scripts/restore.ts --latest --to /data/app.db --force
+# или конкретный дамп: --key happiness-index/app-2026-12-01T00-00-00-000Z.db.gz
+docker compose start app
+```
+Скрипт сначала распаковывает дамп во временный файл и проверяет его (`PRAGMA integrity_check`, число строк в
+заказах, отчётах, результатах, событиях, лидах). Только потом заменяет базу; старый файл остаётся рядом как
+`app.db.before-restore`. Повреждённый дамп базу не трогает.
+
+**Проверка восстановления — раз в месяц и сразу после настройки** (сайт не останавливается):
+```bash
+docker compose run --rm backup node --import tsx scripts/restore.ts --latest --to /tmp/restore-check.db
+```
+Ожидаемо: `integrity_check: ok` и правдоподобные числа строк (заказы — как в `/admin`). Если дампа нет или
+проверка падает — бэкапы не работают, разберись до следующего трафика.
 
 ## 5. Перед первым трафиком
 

@@ -21,6 +21,21 @@ services:
       timeout: 5s
       retries: 3
 
+  # Ежедневный бэкап SQLite в S3 (BACKUP_* в .env), хранение 14 дней. Без настроек — пишет
+  # предупреждение, шлёт алерт и останавливается. Восстановление — LAUNCH.md.
+  backup:
+    build: .
+    command: ["node", "--import", "tsx", "scripts/backup.ts", "--daily"]
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      DATABASE_URL: file:/data/app.db
+    volumes:
+      - app-data:/data
+    depends_on: [app]
+    restart: on-failure
+
   caddy:
     image: caddy:2.8
     profiles: ["https"]

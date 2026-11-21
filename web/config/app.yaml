@@ -30,6 +30,16 @@ percentile:
   # seed и на странице есть пометка. С порога seed исключается автоматически, пометка пропадает.
   real_results_threshold: 500
 
+alerts:
+  # Алерты — в Telegram (TELEGRAM_ALERT_BOT_TOKEN, TELEGRAM_ALERT_CHAT_ID), без них — только в лог.
+  throttle_minutes: 10          # один и тот же повод — не чаще раза в N минут
+  errors_5xx_threshold: 10      # всплеск: столько ответов 5xx…
+  errors_5xx_window_minutes: 5  # …за это окно
+
+backup:
+  retention_days: 14            # дампы старше удаляются из хранилища
+  hour_utc: 0                   # ежедневный бэкап в это время (UTC; 0 = 03:00 МСК)
+
 metrics:
   # Пороги MVP. Цвет в /admin: зелёный — ≥ go, красный — < stop, жёлтый — между.
   completion: {name: "Старт → завершил тест", go: 0.60, stop: 0.45}

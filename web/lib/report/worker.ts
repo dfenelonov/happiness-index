@@ -1,3 +1,4 @@
+import { checkStuckReports } from "../alerts";
 import { appConfig } from "../config";
 import { dueReportOrders, emailReport, generateReport, unsentReportEmails, type GenerateDeps } from "./generate";
 
@@ -21,6 +22,7 @@ export async function runReportWorker(deps: GenerateDeps = {}): Promise<number> 
     }
   }
   for (const { id, email } of await unsentReportEmails()) await emailReport(id, email); // повтор упавших писем
+  await checkStuckReports(); // оплачен, а отчёта всё нет — алерт
   return done;
 }
 

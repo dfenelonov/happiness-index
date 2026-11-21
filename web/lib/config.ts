@@ -123,6 +123,12 @@ const AppConfigSchema = z.object({
   paywall: z.object({ title: z.string(), bullets: z.array(z.string()).min(1) }),
   fake_door: z.object({ name: z.string(), price_rub_month: z.number().int().positive(), pitch: z.string() }),
   percentile: z.object({ real_results_threshold: z.number().int().min(0) }),
+  alerts: z.object({
+    throttle_minutes: z.number().positive(),
+    errors_5xx_threshold: z.number().int().min(1),
+    errors_5xx_window_minutes: z.number().positive(),
+  }),
+  backup: z.object({ retention_days: z.number().int().min(1), hour_utc: z.number().int().min(0).max(23) }),
   metrics: z.object({ completion: Threshold, share: Threshold, purchase: Threshold, subscription: Threshold }),
   report: z.object({
     max_attempts: z.number().int().min(1).max(5),

@@ -81,7 +81,7 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-      - run: docker compose build app
+      - run: docker compose build app backup
       - name: Без настроек production контейнер не стартует
         run: |
           set +e
@@ -104,6 +104,11 @@ jobs:
           done
           echo "главная не ответила за 120 с"
           exit 1
+      - name: Бэкап и проверочное восстановление в контейнере (папка вместо S3)
+        run: |
+          docker compose run --rm -e BACKUP_DIR=/data/backups backup node --import tsx scripts/backup.ts
+          docker compose run --rm -e BACKUP_DIR=/data/backups backup node --import tsx scripts/restore.ts --latest --to /tmp/restore-check.db | tee /tmp/restore.log
+          grep -q "integrity_check: ok" /tmp/restore.log
       - name: Container logs
         if: always()
         run: docker compose logs app

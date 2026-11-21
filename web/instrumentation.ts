@@ -21,3 +21,10 @@ export async function register() {
   const { startReportWorker } = await import("./lib/report/worker");
   startReportWorker();
 }
+
+/** Необработанные ошибки рендера и маршрутов — в счётчик всплеска 5xx (алерт). */
+export async function onRequestError() {
+  if (process.env.NEXT_RUNTIME !== "nodejs") return;
+  const { record5xx } = await import("./lib/alerts");
+  record5xx();
+}
