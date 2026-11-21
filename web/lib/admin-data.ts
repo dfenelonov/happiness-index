@@ -59,6 +59,28 @@ export async function archetypeCounts() {
   return getDb().select({ archetype: r.archetype, n: count() }).from(r).where(and(eq(r.isSeed, false), notQa(r.anonId))).groupBy(r.archetype);
 }
 
+/** Отчёты: сколько готово, доля запасных, время генерации (по нему подбирается таймаут LLM). */
+export async function reportStats() {
+  const rows = await getDb().all<{ status: string; is_fallback: number; duration_ms: number | null; attempt: number; provider: string | null }>(
+    sql`select r.status, r.is_fallback, r.duration_ms, r.attempt, r.provider from reports r
+        join orders o on o.id = r.order_id where coalesce(o.anon_id, '') not like 'qa-%'`,
+  );
+  const ready = rows.filter((r) => r.status === "ready");
+  const durations = ready.map((r) => r.duration_ms).filter((d): d is number => d !== null).sort((a, b) => a - b);
+  const pct = (p: number) => (durations.length ? durations[Math.min(durations.length - 1, Math.floor(p * durations.length))] : null);
+  return {
+    ready: ready.length,
+    pending: rows.filter((r) => r.status === "pending").length,
+    failed: rows.filter((r) => r.status === "failed").length,
+    fallback: ready.filter((r) => r.is_fallback).length,
+    retried: ready.filter((r) => r.attempt > 1).length,
+    p50: pct(0.5),
+    p95: pct(0.95),
+    max: durations.at(-1) ?? null,
+    providers: [...new Set(ready.map((r) => r.provider ?? "—"))].join(", "),
+  };
+}
+
 /** Таблицы для CSV. Seed-результаты и демо-данные /dev/qa исключены. */
 export const EXPORTS = {
   events: () => getDb().select().from(schema.events).where(notQa(schema.events.anonId)).orderBy(schema.events.id),

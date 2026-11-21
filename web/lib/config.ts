@@ -127,6 +127,10 @@ const AppConfigSchema = z.object({
   report: z.object({
     max_attempts: z.number().int().min(1).max(5),
     attempt_timeout_seconds: z.number().positive(),
+    retry_pause_seconds: z.number().min(0),
+    stale_after_minutes: z.number().positive(),
+    worker_interval_seconds: z.number().int().min(10),
+    alert_no_report_minutes: z.number().positive(),
     low_index_threshold: z.number().int().min(0).max(100),
   }),
 });

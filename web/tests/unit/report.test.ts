@@ -132,6 +132,25 @@ describe("внешняя LLM: валидация, повтор, fallback", () =>
     expect(out.isFallback).toBe(true);
   });
 
+  it("пауза между попытками, но не перед первой и не после последней", async () => {
+    const input = inputFor();
+    const sleep = vi.fn(async () => {});
+    const onAttempt = vi.fn();
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    await buildReport(input, provider(new Error("x")), { maxAttempts: 3, timeoutMs: 1000, pauseMs: 500, sleep, onAttempt });
+    expect(sleep.mock.calls).toEqual([[500], [500]]);
+    expect(onAttempt.mock.calls).toEqual([[1], [2], [3]]);
+  });
+
+  it("время каждой попытки пишется в лог (llm_attempt)", async () => {
+    const info = vi.spyOn(console, "info").mockImplementation(() => {});
+    const input = inputFor();
+    await buildReport(input, provider(JSON.stringify(generateMockReport(input))), opts);
+    const line = JSON.parse(info.mock.calls.at(-1)![0] as string);
+    expect(line).toMatchObject({ event: "llm_attempt", provider: "fake", attempt: 1, ok: true });
+    expect(typeof line.ms).toBe("number");
+  });
+
   it("без провайдера — сразу mock", async () => {
     const out = await buildReport(inputFor(), null, opts);
     expect(out).toMatchObject({ provider: "mock", isFallback: false, attempts: 0 });

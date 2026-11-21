@@ -18,4 +18,6 @@ export async function register() {
       console.warn("⚠ MAIL_PROVIDER не smtp — письма со ссылкой на разбор не уходят покупателям.");
     }
   }
+  const { startReportWorker } = await import("./lib/report/worker");
+  startReportWorker();
 }

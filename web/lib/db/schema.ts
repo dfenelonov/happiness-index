@@ -102,8 +102,11 @@ export const reports = sqliteTable(
   isFallback: integer("is_fallback", { mode: "boolean" }).notNull().default(false),
   content: text("content", { mode: "json" }).$type<unknown>(),
   emailedAt: text("emailed_at"),
+  attempt: integer("attempt").notNull().default(0), // текущая попытка у LLM — для экрана прогресса
+  startedAt: text("started_at"),
+  durationMs: integer("duration_ms"), // реальное время генерации — чтобы подобрать таймаут по факту
   createdAt: createdAt(),
-  updatedAt: text("updated_at"),
+  updatedAt: text("updated_at"), // «пульс» генерации: обновляется на каждой попытке
   },
   (t) => [check("reports_status_check", sql`${t.status} in ('pending', 'ready', 'failed')`)],
 );

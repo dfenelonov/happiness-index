@@ -1,13 +1,14 @@
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { FakeDoor } from "@/components/FakeDoor";
-import { StatusPoller } from "@/components/StatusPoller";
+import { ReportProgress } from "@/components/ReportProgress";
 import { TrackOnMount } from "@/components/Track";
 import { PdfLink } from "@/components/PdfLink";
 import { SupportContacts } from "@/components/SupportContacts";
 import { appConfig } from "@/lib/config";
 import { getOrder } from "@/lib/payments/service";
-import { ensureReport, getReport } from "@/lib/report/generate";
+import { maskEmail } from "@/lib/mailer";
+import { getReport } from "@/lib/report/generate";
 
 export const metadata: Metadata = { title: "Твой разбор — Индекс счастья", robots: { index: false } };
 export const dynamic = "force-dynamic";
@@ -17,17 +18,21 @@ export default async function ReportPage({ params }: { params: Promise<{ id: str
   const order = await getOrder(id);
   if (!order) notFound();
   if (order.status !== "paid") redirect(`/order/${id}`); // отчёт доступен только после оплаты
-  const { status, report, isFallback } = await getReport(id);
+  const state = await getReport(id);
+  const { report, isFallback } = state;
   const app = appConfig();
 
   if (!report) {
-    if (status !== "pending") void ensureReport(id);
+    // генерирует фоновый воркер; страница только показывает прогресс (и будит воркер через статус)
     return (
       <div className="mx-auto max-w-xl px-5 py-20 text-center" data-testid="report-waiting">
-        <StatusPoller orderId={id} until="ready" />
         <div className="pulse-soft mx-auto h-16 w-16 rounded-full bg-gradient-to-br from-gold via-accent to-plum" />
         <h1 className="mt-8 font-serif text-3xl font-semibold">Готовим твой разбор…</h1>
-        <p className="mt-3 text-muted">Собираем его по твоим ответам. Обычно это до минуты — ссылку мы также пришлём на почту.</p>
+        <ReportProgress
+          orderId={id}
+          email={maskEmail(order.email)}
+          initial={{ report: state.status, attempt: state.attempt, maxAttempts: state.maxAttempts, startedAt: state.startedAt }}
+        />
         <SupportContacts lead="Что-то пошло не так? Напиши нам:" className="mt-6 text-sm text-muted" />
       </div>
     );

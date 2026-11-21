@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { breakdown, funnelMetrics, questionReach, type Color, type Metric } from "@/lib/admin-metrics";
-import { archetypeCounts, loadEvents, loadLeads, loadOrders, revenueByVariant } from "@/lib/admin-data";
+import { archetypeCounts, loadEvents, loadLeads, loadOrders, reportStats, revenueByVariant } from "@/lib/admin-data";
 import { appConfig, questionnaire } from "@/lib/config";
 
 export const metadata: Metadata = { title: "Админка — Индекс счастья", robots: { index: false } };
@@ -33,13 +33,15 @@ export default async function Admin({ searchParams }: { searchParams: Promise<{ 
   const period = await searchParams;
   const cfg = appConfig().metrics;
   const q = questionnaire();
-  const [events, orders, leads, revenue, archetypes] = await Promise.all([
+  const [events, orders, leads, revenue, archetypes, reports] = await Promise.all([
     loadEvents(period),
     loadOrders(period),
     loadLeads(period),
     revenueByVariant(period),
     archetypeCounts(),
+    reportStats(),
   ]);
+  const sec = (ms: number | null) => (ms === null ? "—" : `${(ms / 1000).toFixed(1)} с`);
   const { steps, metrics } = funnelMetrics(events, cfg);
   const byPrice = breakdown(events, cfg, "priceVariant");
   const byUtm = breakdown(events, cfg, "utmSource");
@@ -123,6 +125,23 @@ export default async function Admin({ searchParams }: { searchParams: Promise<{ 
             ))}
           </tbody>
         </table>
+      </section>
+
+      <section className="card p-6" data-testid="report-stats">
+        <h2 className="font-serif text-2xl font-semibold">Отчёты (за всё время)</h2>
+        <p className="mt-1 text-sm text-muted">Время генерации — по нему подбирается таймаут LLM (`config/app.yaml` → `report`).</p>
+        <div className="mt-4 grid gap-3 text-sm sm:grid-cols-4">
+          <div>Готово: <b>{reports.ready}</b>{reports.providers && <span className="text-muted"> · {reports.providers}</span>}</div>
+          <div>
+            Запасных (шаблоны): <b>{reports.fallback}</b> · с повтором: <b>{reports.retried}</b>
+          </div>
+          <div>
+            Время: медиана <b>{sec(reports.p50)}</b>, p95 <b>{sec(reports.p95)}</b>, макс {sec(reports.max)}
+          </div>
+          <div className={reports.pending || reports.failed ? "font-semibold text-accent-dark" : ""}>
+            В работе: {reports.pending} · упали: {reports.failed}
+          </div>
+        </div>
       </section>
 
       <section className="card p-6">
