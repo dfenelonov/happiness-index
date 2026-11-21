@@ -5,7 +5,7 @@ import { mutated, q } from "./helpers";
 describe("questionnaire.yaml проходит схему", () => {
   it("загружается", () => {
     expect(q.questions.length).toBeGreaterThan(0);
-    expect(appConfig().pricing.variants_rub).toEqual([490, 690, 990]);
+    expect(appConfig().pricing.variants_rub).toEqual([199]);
   });
 
   it.each([

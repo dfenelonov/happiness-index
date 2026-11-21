@@ -7,7 +7,12 @@ import fs from "node:fs";
 import { IncomingMessage, ServerResponse } from "node:http";
 import { Duplex } from "node:stream";
 import next from "next";
+import { appConfig } from "../../lib/config";
 import { MOCK_SIGNATURE_HEADER, signMockWebhook } from "../../lib/payments/mock";
+
+// цены — из config/app.yaml: при A/B ?price= выбирает последнюю, при одной цене она же и есть
+const PRICES = appConfig().pricing.variants_rub;
+const PRICE = PRICES[PRICES.length - 1];
 
 type Res = { status: number; headers: Record<string, string[]>; body: Buffer; text: string };
 
@@ -135,8 +140,8 @@ async function main() {
   check("результат: индекс, перцентиль, тип, утечки, ВЦИОМ", ["из 100", "участников", "Тип личности", "Три главные утечки", "россиян"].every((s) => r.text.includes(s)));
   check("пометка о модельном распределении, пока настоящих результатов мало", r.text.includes("модельным распределением"));
   check("пейволл и фейковая дверь у владельца", r.text.includes('data-testid="paywall"') && r.text.includes('data-testid="fake-door"'));
-  r = await call("GET", `/result/${resultId}?price=990`);
-  check("?price=990 переопределяет цену", r.text.includes(">990<!-- --> ₽") || r.text.includes("990 ₽"));
+  r = await call("GET", `/result/${resultId}?price=${PRICE}`);
+  check(`цена ${PRICE} ₽ на пейволле`, r.text.includes(`>${PRICE}<!-- --> ₽`) || r.text.includes(`${PRICE} ₽`));
 
   r = await call("GET", `/api/card/${resultId}`);
   if (process.env.SMOKE_SAVE_IMAGES) {
@@ -161,14 +166,14 @@ async function main() {
   const checkout = json(r);
   check("checkout → ссылка на мок-кассу", r.status === 200 && checkout.confirmationUrl?.startsWith("/pay/mock/"));
   r = await call("GET", checkout.confirmationUrl);
-  check("мок-касса 200, сумма 990 ₽", r.status === 200 && r.text.includes("990") && r.text.includes("Оплатить успешно"));
+  check(`мок-касса 200, сумма ${PRICE} ₽`, r.status === 200 && r.text.includes(String(PRICE)) && r.text.includes("Оплатить успешно"));
 
   r = await call("GET", `/report/${checkout.orderId}`);
   check("отчёт до оплаты → редирект на заказ", r.status === 307 && r.headers.location?.[0]?.includes(`/order/${checkout.orderId}`));
 
   // Кнопка мок-кассы шлёт вебхук по HTTP на свой адрес; без порта отправляем его так же, напрямую.
   const paymentId = checkout.confirmationUrl.split("/").pop();
-  const body = JSON.stringify({ paymentId, status: "succeeded", amountRub: 990 });
+  const body = JSON.stringify({ paymentId, status: "succeeded", amountRub: PRICE });
   check("вебхук с неверной подписью → 400", (await call("POST", "/api/webhooks/payment", { body, headers: { [MOCK_SIGNATURE_HEADER]: "bad" } })).status === 400);
   r = await call("POST", "/api/webhooks/payment", { body, headers: { [MOCK_SIGNATURE_HEADER]: signMockWebhook(body) } });
   check("вебхук успешной оплаты", r.status === 200);
@@ -233,8 +238,8 @@ async function main() {
     else console.log(`  ${href} → ${res.status}`);
   }
   check("/dev/qa: все ссылки на результаты, оплату, отчёт и превью вопросов открываются", qaOk === new Set(qaLinks).size + qaPages.length, `${qaOk} страниц`);
-  r = await call("GET", `${qaLinks[0]}?price=490&open=checkout`, { auth });
-  check("/dev/qa: пейволл с открытой формой и ценой 490", r.text.includes('data-testid="checkout-form"') && r.text.includes("490"));
+  r = await call("GET", `${qaLinks[0]}?price=${PRICES[0]}&open=checkout`, { auth });
+  check(`/dev/qa: пейволл с открытой формой и ценой ${PRICES[0]}`, r.text.includes('data-testid="checkout-form"') && r.text.includes(String(PRICES[0])));
   r = await call("GET", "/admin", { auth });
   check("/admin не показывает демо-заказы", r.status === 200 && !r.text.includes("qa@example.ru"));
 

@@ -1,5 +1,10 @@
 import { expect, test } from "@playwright/test";
+import { appConfig } from "../../lib/config";
 import { ADMIN, answerQuestions, completeTest, dismissCookies } from "./helpers";
+
+// цены — из config/app.yaml (одна цена или несколько вариантов A/B)
+const PRICES = appConfig().pricing.variants_rub;
+const PRICE = PRICES[0];
 
 test.describe.configure({ mode: "serial" });
 
@@ -37,11 +42,11 @@ test("лендинг → тест (назад, продолжение после
   expect(card.headers()["content-type"]).toBe("image/png");
 
   // Пейволл всем владельцам; цена — из A/B, ?price= переопределяет
-  await expect(page.getByTestId("price")).toHaveText(/^(490|690|990) ₽$/);
-  await page.goto(`${resultUrl}?price=490`);
-  await expect(page.getByTestId("price")).toHaveText("490 ₽");
+  await expect(page.getByTestId("price")).toHaveText(new RegExp(`^(${PRICES.join("|")}) ₽$`));
+  await page.goto(`${resultUrl}?price=${PRICE}`);
+  await expect(page.getByTestId("price")).toHaveText(`${PRICE} ₽`);
   await page.goto(resultUrl);
-  await expect(page.getByTestId("price")).toHaveText("490 ₽"); // закреплено в cookie
+  await expect(page.getByTestId("price")).toHaveText(`${PRICE} ₽`); // закреплено в cookie
 
   // Шеринг — копирование ссылки
   await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
@@ -62,9 +67,9 @@ test("лендинг → тест (назад, продолжение после
   const form = page.getByTestId("checkout-form");
   await form.getByLabel("Email для чека").fill("buyer@example.ru");
   await form.getByRole("checkbox").check();
-  await form.getByRole("button", { name: /Оплатить 490/ }).click();
+  await form.getByRole("button", { name: new RegExp(`Оплатить ${PRICE}`) }).click();
   await page.waitForURL(/\/pay\/mock\//);
-  await expect(page.getByTestId("mock-amount")).toHaveText("490 ₽");
+  await expect(page.getByTestId("mock-amount")).toHaveText(`${PRICE} ₽`);
   await page.getByTestId("mock-pay-success").click();
 
   // Отчёт
