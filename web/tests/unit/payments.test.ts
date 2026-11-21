@@ -106,15 +106,15 @@ describe("ЮKassa: вебхуку не верим, статус — из API", (
     (async () => new Response(JSON.stringify(payment), { status })) as unknown as typeof fetch;
 
   it("статус и сумма берутся из ответа API, а не из тела вебхука", async () => {
-    const yk = new YooKassaProvider("shop", "secret", 1, api({ id: "pay_1", status: "canceled", amount: { value: "690.00", currency: "RUB" } }));
+    const yk = new YooKassaProvider("shop", "secret", "none", 1, api({ id: "pay_1", status: "canceled", amount: { value: "690.00", currency: "RUB" } }));
     const body = JSON.stringify({ event: "payment.succeeded", object: { id: "pay_1", status: "succeeded", amount: { value: "1.00" } } });
     expect(await yk.verifyWebhook(body)).toEqual({ paymentId: "pay_1", status: "canceled", amountRub: 690 });
   });
 
   it("промежуточные статусы игнорируются, неизвестный платёж — ошибка", async () => {
-    const pending = new YooKassaProvider("s", "k", 1, api({ id: "p", status: "pending", amount: { value: "690.00", currency: "RUB" } }));
+    const pending = new YooKassaProvider("s", "k", "none", 1, api({ id: "p", status: "pending", amount: { value: "690.00", currency: "RUB" } }));
     expect(await pending.verifyWebhook(JSON.stringify({ object: { id: "p" } }))).toBeNull();
-    const missing = new YooKassaProvider("s", "k", 1, api({}, 404));
+    const missing = new YooKassaProvider("s", "k", "none", 1, api({}, 404));
     await expect(missing.verifyWebhook(JSON.stringify({ object: { id: "p" } }))).rejects.toThrow(WebhookError);
   });
 
@@ -124,7 +124,7 @@ describe("ЮKassa: вебхуку не верим, статус — из API", (
       sent = { body: init.body as string, headers: init.headers as Record<string, string> };
       return new Response(JSON.stringify({ id: "pay_2", status: "pending", amount: { value: "490.00", currency: "RUB" }, confirmation: { confirmation_url: "https://yoomoney.ru/x" } }));
     }) as unknown as typeof fetch;
-    const yk = new YooKassaProvider("shop", "secret", 1, fetchImpl);
+    const yk = new YooKassaProvider("shop", "secret", "yookassa_receipt", 1, fetchImpl);
     const res = await yk.createPayment({ orderId: "o1", amountRub: 490, description: "Разбор", returnUrl: "https://site/order/o1", email: "a@b.ru" });
     expect(res).toEqual({ paymentId: "pay_2", confirmationUrl: "https://yoomoney.ru/x" });
     const body = JSON.parse(sent!.body);
@@ -132,5 +132,16 @@ describe("ЮKassa: вебхуку не верим, статус — из API", (
     expect(body.receipt.customer.email).toBe("a@b.ru");
     expect(body.confirmation.return_url).toBe("https://site/order/o1");
     expect(sent!.headers["Idempotence-Key"]).toBeTruthy();
+  });
+
+  it("RECEIPT_MODE=none (по умолчанию) — данные чека в платёж не передаются", async () => {
+    let body: Record<string, unknown> = {};
+    const fetchImpl = (async (_url: string, init: RequestInit) => {
+      body = JSON.parse(init.body as string);
+      return new Response(JSON.stringify({ id: "p", status: "pending", amount: { value: "690.00", currency: "RUB" }, confirmation: { confirmation_url: "https://x" } }));
+    }) as unknown as typeof fetch;
+    await new YooKassaProvider("shop", "secret", undefined, 1, fetchImpl).createPayment({ orderId: "o", amountRub: 690, description: "Разбор", returnUrl: "https://s/o", email: "a@b.ru" });
+    expect(body.receipt).toBeUndefined();
+    expect(body.amount).toEqual({ value: "690.00", currency: "RUB" });
   });
 });

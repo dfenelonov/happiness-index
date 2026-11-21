@@ -38,6 +38,8 @@ export default defineConfig({
           LLM_PROVIDER: "mock",
           MAIL_PROVIDER: "mock",
           MOCK_WEBHOOK_SECRET: "e2e-secret",
+          UNSAFE_SKIP_PRODUCTION_CHECKS: "true", // next start = production, а здесь моки
+          SUPPORT_EMAIL: "support@example.ru",
         },
       },
 });

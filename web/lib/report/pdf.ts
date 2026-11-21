@@ -1,5 +1,6 @@
 import path from "node:path";
 import PDFDocument from "pdfkit";
+import { supportLine } from "../support";
 import type { Report } from "./schema";
 
 // PDF рендерится на сервере (pdfkit) с Golos Text — у стандартных PDF-шрифтов нет кириллицы.
@@ -55,6 +56,8 @@ export function renderReportPdf(r: Report, meta: { index: number; archetype: str
   h2("Напоследок");
   r.closing.forEach(p);
   doc.moveDown(1).font("regular").fontSize(9).fillColor(MUTED).text("Не является медицинской или психологической услугой.");
+  const contact = supportLine();
+  if (contact) doc.text(contact);
   doc.end();
   return done;
 }

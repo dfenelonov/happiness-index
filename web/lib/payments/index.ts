@@ -1,3 +1,4 @@
+import { receiptMode } from "../env-guard";
 import { MockPaymentProvider } from "./mock";
 import type { PaymentProvider } from "./types";
 import { YooKassaProvider } from "./yookassa";
@@ -9,7 +10,7 @@ export function getPaymentProvider(): PaymentProvider {
     const shopId = process.env.YOOKASSA_SHOP_ID;
     const secret = process.env.YOOKASSA_SECRET_KEY;
     if (!shopId || !secret) throw new Error("PAYMENT_PROVIDER=yookassa: задай YOOKASSA_SHOP_ID и YOOKASSA_SECRET_KEY");
-    return new YooKassaProvider(shopId, secret);
+    return new YooKassaProvider(shopId, secret, receiptMode());
   }
   if (name !== "mock") throw new Error(`Неизвестный PAYMENT_PROVIDER=${name}`);
   return new MockPaymentProvider();

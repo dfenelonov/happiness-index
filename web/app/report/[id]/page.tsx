@@ -4,6 +4,7 @@ import { FakeDoor } from "@/components/FakeDoor";
 import { StatusPoller } from "@/components/StatusPoller";
 import { TrackOnMount } from "@/components/Track";
 import { PdfLink } from "@/components/PdfLink";
+import { SupportContacts } from "@/components/SupportContacts";
 import { appConfig } from "@/lib/config";
 import { getOrder } from "@/lib/payments/service";
 import { ensureReport, getReport } from "@/lib/report/generate";
@@ -27,6 +28,7 @@ export default async function ReportPage({ params }: { params: Promise<{ id: str
         <div className="pulse-soft mx-auto h-16 w-16 rounded-full bg-gradient-to-br from-gold via-accent to-plum" />
         <h1 className="mt-8 font-serif text-3xl font-semibold">Готовим твой разбор…</h1>
         <p className="mt-3 text-muted">Собираем его по твоим ответам. Обычно это до минуты — ссылку мы также пришлём на почту.</p>
+        <SupportContacts lead="Что-то пошло не так? Напиши нам:" className="mt-6 text-sm text-muted" />
       </div>
     );
   }
@@ -120,6 +122,7 @@ export default async function ReportPage({ params }: { params: Promise<{ id: str
         <div className="mt-8 flex justify-center">
           <PdfLink orderId={id} />
         </div>
+        <SupportContacts lead="Вопросы, возврат или что-то не так с разбором:" className="mt-8 text-center text-sm text-muted" />
       </Section>
 
       <FakeDoor source="report" resultId={order.resultId} name={app.fake_door.name} price={app.fake_door.price_rub_month} pitch={app.fake_door.pitch} />

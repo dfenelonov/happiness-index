@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { mockPaymentsEnabled } from "@/lib/env-guard";
 import { getOrderByPayment } from "@/lib/payments/service";
 import { maskEmail } from "@/lib/mailer";
 
@@ -7,7 +8,7 @@ export const metadata: Metadata = { title: "Тестовая касса", robots
 
 /** Мок платёжной страницы. Деньги не списываются; кнопки шлют вебхук на наш сервер. */
 export default async function MockKassa({ params }: { params: Promise<{ paymentId: string }> }) {
-  if ((process.env.PAYMENT_PROVIDER || "mock") !== "mock") notFound();
+  if (!mockPaymentsEnabled()) notFound();
   const { paymentId } = await params;
   const order = await getOrderByPayment(paymentId);
   if (!order) notFound();

@@ -200,7 +200,8 @@ async function main() {
 
   // /dev/qa: в production — только по паролю админки; демо-данные не попадают в админку
   const auth = `admin:${process.env.ADMIN_PASSWORD}`;
-  check("/dev/qa без пароля в production → 401", (await call("GET", "/dev/qa")).status === 401);
+  check("/dev/qa без пароля в production → 404", (await call("GET", "/dev/qa")).status === 404);
+  check("/dev/qa с неверным паролем → 404", (await call("GET", "/dev/qa", { auth: "admin:wrong" })).status === 404);
   r = await call("POST", "/dev/qa/seed", { auth });
   check("/dev/qa: демо-данные созданы, браузер стал QA-посетителем", r.status === 303 && (jar.get("hi_anon") ?? "").startsWith("qa-"));
   r = await call("GET", "/dev/qa", { auth });

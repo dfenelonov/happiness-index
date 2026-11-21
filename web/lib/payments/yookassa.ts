@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import type { ReceiptMode } from "../env-guard";
 import { WebhookError, type CreatePaymentInput, type PaymentProvider, type VerifiedPayment } from "./types";
 
 // ЮKassa через REST API v3 (https://yookassa.ru/developers/api). Тело вебхука не доверяем:
@@ -19,6 +20,8 @@ export class YooKassaProvider implements PaymentProvider {
   constructor(
     private shopId: string,
     private secretKey: string,
+    /** none — чек не передаём (самозанятый: чек в «Мой налог» формирует ЮKassa); yookassa_receipt — чек 54-ФЗ в платеже */
+    private receipt: ReceiptMode = "none",
     private vatCode = Number(process.env.YOOKASSA_VAT_CODE ?? 1),
     private fetchImpl: typeof fetch = fetch,
   ) {}
@@ -38,19 +41,7 @@ export class YooKassaProvider implements PaymentProvider {
         confirmation: { type: "redirect", return_url: input.returnUrl },
         description: input.description.slice(0, 128),
         metadata: { order_id: input.orderId },
-        receipt: {
-          customer: { email: input.email },
-          items: [
-            {
-              description: input.description.slice(0, 128),
-              quantity: "1.00",
-              amount: { value, currency: "RUB" },
-              vat_code: this.vatCode,
-              payment_mode: "full_payment",
-              payment_subject: "service",
-            },
-          ],
-        },
+        ...(this.receipt === "yookassa_receipt" ? { receipt: this.receiptFor(input, value) } : {}),
       }),
     });
     if (!res.ok) throw new Error(`ЮKassa: создание платежа ${res.status}`);
@@ -58,6 +49,23 @@ export class YooKassaProvider implements PaymentProvider {
     const url = p.confirmation?.confirmation_url;
     if (!url) throw new Error("ЮKassa: нет confirmation_url");
     return { paymentId: p.id, confirmationUrl: url };
+  }
+
+  /** Чек 54-ФЗ в составе платежа (RECEIPT_MODE=yookassa_receipt). */
+  private receiptFor(input: CreatePaymentInput, value: string) {
+    return {
+      customer: { email: input.email },
+      items: [
+        {
+          description: input.description.slice(0, 128),
+          quantity: "1.00",
+          amount: { value, currency: "RUB" },
+          vat_code: this.vatCode,
+          payment_mode: "full_payment",
+          payment_subject: "service",
+        },
+      ],
+    };
   }
 
   async verifyWebhook(rawBody: string): Promise<VerifiedPayment | null> {

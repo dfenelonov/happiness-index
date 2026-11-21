@@ -1,4 +1,5 @@
 import nodemailer from "nodemailer";
+import { supportLine } from "./support";
 
 // MAIL_PROVIDER=mock (по умолчанию): письмо не уходит, в лог пишется только факт отправки
 // с замаскированным адресом. MAIL_PROVIDER=smtp: SMTP_* из .env.
@@ -12,7 +13,8 @@ export function maskEmail(email: string) {
 
 export async function sendReportEmail(to: string, link: string) {
   const subject = "Твой персональный разбор готов";
-  const text = `Привет!\n\nТвой персональный разбор «Индекс счастья» готов: ${link}\n\nСсылка личная — не пересылай её никому.\n`;
+  const contact = supportLine();
+  const text = `Привет!\n\nТвой персональный разбор «Индекс счастья» готов: ${link}\n\nСсылка личная — не пересылай её никому.\n${contact ? `\n${contact}\n` : ""}`;
   if ((process.env.MAIL_PROVIDER || "mock") !== "smtp") {
     sentMail.push({ to, subject, text });
     if (sentMail.length > 100) sentMail.shift();

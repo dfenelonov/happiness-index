@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { MOCK_SIGNATURE_HEADER, signMockWebhook } from "@/lib/payments/mock";
+import { mockPaymentsEnabled } from "@/lib/env-guard";
 import { getOrderByPayment } from "@/lib/payments/service";
 
 /**
@@ -7,7 +8,7 @@ import { getOrderByPayment } from "@/lib/payments/service";
  * ровно как это сделала бы настоящая касса, — и возвращаем покупателя на return_url.
  */
 export async function POST(req: NextRequest, { params }: { params: Promise<{ paymentId: string }> }) {
-  if ((process.env.PAYMENT_PROVIDER || "mock") !== "mock") return new Response("Not found", { status: 404 });
+  if (!mockPaymentsEnabled()) return new Response("Not found", { status: 404 });
   const { paymentId } = await params;
   const order = await getOrderByPayment(paymentId);
   if (!order) return new Response("Платёж не найден", { status: 404 });

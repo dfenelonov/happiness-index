@@ -55,6 +55,9 @@ export default async function Admin({ searchParams }: { searchParams: Promise<{ 
           <p className="eyebrow">Эксперимент MVP</p>
           <h1 className="mt-2 font-serif text-4xl font-semibold">Админка</h1>
           <p className="mt-1 text-sm text-muted">Посетители — уникальные anon_id. Seed-результаты в метрики не входят. Даты — UTC.</p>
+          <p className="mt-1 text-sm">
+            <a href="/dev/qa" className="underline">QA-галерея</a> · <a href="/dev/mailbox" className="underline">Почтовый ящик (мок)</a>
+          </p>
         </div>
         <form className="flex flex-wrap items-end gap-2 text-sm">
           <label className="grid gap-1">
