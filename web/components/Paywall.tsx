@@ -12,11 +12,12 @@ type Props = {
   leaks: string[];
   archetype: string;
   refundDays: number;
+  initiallyOpen?: boolean; // ?open=checkout — для /dev/qa
 };
 
-export function Paywall({ resultId, price, title, bullets, leaks, archetype, refundDays }: Props) {
+export function Paywall({ resultId, price, title, bullets, leaks, archetype, refundDays, initiallyOpen = false }: Props) {
   const ref = useRef<HTMLElement>(null);
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(initiallyOpen);
   const [email, setEmail] = useState("");
   const [agree, setAgree] = useState(false);
   const [busy, setBusy] = useState(false);

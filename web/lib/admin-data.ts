@@ -1,5 +1,6 @@
 import { and, count, desc, eq, gte, lt, sql } from "drizzle-orm";
 import { getDb, schema } from "./db";
+import { notQa } from "./qa";
 
 export type Period = { from?: string; to?: string };
 
@@ -18,7 +19,7 @@ export async function loadEvents(p: Period) {
   return getDb()
     .select({ name: e.name, anonId: e.anonId, priceVariant: e.priceVariant, utmSource: e.utmSource, props: e.props })
     .from(e)
-    .where(and(from ? gte(e.createdAt, from) : undefined, to ? lt(e.createdAt, to) : undefined));
+    .where(and(notQa(e.anonId), from ? gte(e.createdAt, from) : undefined, to ? lt(e.createdAt, to) : undefined));
 }
 
 export async function loadOrders(p: Period, limit = 200) {
@@ -27,7 +28,7 @@ export async function loadOrders(p: Period, limit = 200) {
   return getDb()
     .select()
     .from(o)
-    .where(and(from ? gte(o.createdAt, from) : undefined, to ? lt(o.createdAt, to) : undefined))
+    .where(and(notQa(o.anonId), from ? gte(o.createdAt, from) : undefined, to ? lt(o.createdAt, to) : undefined))
     .orderBy(desc(o.createdAt))
     .limit(limit);
 }
@@ -38,7 +39,7 @@ export async function loadLeads(p: Period, limit = 200) {
   return getDb()
     .select()
     .from(l)
-    .where(and(from ? gte(l.createdAt, from) : undefined, to ? lt(l.createdAt, to) : undefined))
+    .where(and(notQa(l.anonId), from ? gte(l.createdAt, from) : undefined, to ? lt(l.createdAt, to) : undefined))
     .orderBy(desc(l.createdAt))
     .limit(limit);
 }
@@ -49,21 +50,26 @@ export async function revenueByVariant(p: Period) {
   return getDb()
     .select({ variant: o.priceVariant, paid: count(), revenue: sql<number>`coalesce(sum(${o.amountRub}), 0)` })
     .from(o)
-    .where(and(eq(o.status, "paid"), from ? gte(o.paidAt, from) : undefined, to ? lt(o.paidAt, to) : undefined))
+    .where(and(eq(o.status, "paid"), notQa(o.anonId), from ? gte(o.paidAt, from) : undefined, to ? lt(o.paidAt, to) : undefined))
     .groupBy(o.priceVariant);
 }
 
 export async function archetypeCounts() {
   const r = schema.results;
-  return getDb().select({ archetype: r.archetype, n: count() }).from(r).where(eq(r.isSeed, false)).groupBy(r.archetype);
+  return getDb().select({ archetype: r.archetype, n: count() }).from(r).where(and(eq(r.isSeed, false), notQa(r.anonId))).groupBy(r.archetype);
 }
 
-/** Таблицы для CSV. Seed-результаты исключены. */
+/** Таблицы для CSV. Seed-результаты и демо-данные /dev/qa исключены. */
 export const EXPORTS = {
-  events: () => getDb().select().from(schema.events).orderBy(schema.events.id),
-  orders: () => getDb().select().from(schema.orders).orderBy(schema.orders.createdAt),
-  leads: () => getDb().select().from(schema.leads).orderBy(schema.leads.id),
-  results: () => getDb().select().from(schema.results).where(eq(schema.results.isSeed, false)).orderBy(schema.results.createdAt),
+  events: () => getDb().select().from(schema.events).where(notQa(schema.events.anonId)).orderBy(schema.events.id),
+  orders: () => getDb().select().from(schema.orders).where(notQa(schema.orders.anonId)).orderBy(schema.orders.createdAt),
+  leads: () => getDb().select().from(schema.leads).where(notQa(schema.leads.anonId)).orderBy(schema.leads.id),
+  results: () =>
+    getDb()
+      .select()
+      .from(schema.results)
+      .where(and(eq(schema.results.isSeed, false), notQa(schema.results.anonId)))
+      .orderBy(schema.results.createdAt),
 } as const;
 
 export function toCsv(rows: Record<string, unknown>[]): string {

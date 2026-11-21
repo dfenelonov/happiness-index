@@ -34,6 +34,7 @@
 - `web/config/app.yaml` — цены A/B, пейволл, фейковая дверь, порог перцентиля, пороги метрик, отчёт.
 - `web/prompts/report.md` — промпт внешней LLM.
 - `web/docs/TEXTS_REVIEW.md` — все тексты для вычитки (генерируется).
+- `web/docs/LAUNCH_READINESS.md` — go/no-go к запуску. `web/docs/MANUAL_QA.md` — ручная проверка по `/dev/qa`.
 
 ## Стек (менять только с согласия владельца)
 
@@ -57,6 +58,7 @@ npx playwright install chromium               # один раз
 npm run test:e2e                              # Playwright (после build), порт — E2E_PORT, по умолчанию 3100
 npm run screenshots                           # скриншоты экранов → docs/screenshots (после build)
 npm run texts:review                          # пересобрать docs/TEXTS_REVIEW.md после правки текстов
+# /dev/qa — галерея всех экранов с демо-данными (вне production; в production — пароль админки)
 npm run db:generate                           # новая миграция после правки lib/db/schema.ts
 docker compose up -d --build                  # прод-запуск; с HTTPS: --profile https (DOMAIN в .env)
 ```

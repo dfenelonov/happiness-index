@@ -13,7 +13,9 @@ export const config = {
 export function middleware(req: NextRequest) {
   const { pathname, searchParams } = req.nextUrl;
 
-  if (pathname.startsWith("/admin") || pathname.startsWith("/api/admin")) {
+  // /dev/qa — свободно вне production, в production — по паролю админки
+  const devTools = pathname.startsWith("/dev/") && process.env.NODE_ENV === "production";
+  if (devTools || pathname.startsWith("/admin") || pathname.startsWith("/api/admin")) {
     const denied = checkBasicAuth(req.headers.get("authorization"), process.env.ADMIN_PASSWORD);
     if (denied) return denied;
   }

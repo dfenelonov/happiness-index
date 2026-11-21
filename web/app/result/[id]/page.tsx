@@ -12,7 +12,7 @@ import { getResult, resultPercentile } from "@/lib/results";
 import { axisDisplay, countryLine, indexLevel, poleOf } from "@/lib/scoring";
 import { getVisitor } from "@/lib/visitor";
 
-type Props = { params: Promise<{ id: string }> };
+type Props = { params: Promise<{ id: string }>; searchParams: Promise<{ open?: string }> };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params;
@@ -28,8 +28,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   };
 }
 
-export default async function ResultPage({ params }: Props) {
+export default async function ResultPage({ params, searchParams }: Props) {
   const { id } = await params;
+  const { open } = await searchParams;
   const r = await getResult(id);
   if (!r) notFound();
   const q = questionnaire();
@@ -151,8 +152,16 @@ export default async function ResultPage({ params }: Props) {
             leaks={r.leaks.map((z) => q.zones[z].name)}
             archetype={arch.name}
             refundDays={app.pricing.refund_days}
+            initiallyOpen={open === "checkout"}
           />
-          <FakeDoor source="result" resultId={r.id} name={app.fake_door.name} price={app.fake_door.price_rub_month} pitch={app.fake_door.pitch} />
+          <FakeDoor
+            source="result"
+            resultId={r.id}
+            name={app.fake_door.name}
+            price={app.fake_door.price_rub_month}
+            pitch={app.fake_door.pitch}
+            initiallyOpen={open === "tracker"}
+          />
         </>
       )}
     </div>

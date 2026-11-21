@@ -56,7 +56,10 @@ function store(key: string, s: Saved | null) {
  * Тест по одному вопросу на экран. Ответы — в localStorage сразу и на сервер следом;
  * неотправленные (pending) досылаются при следующем ответе или после перезагрузки.
  */
-export function TestRunner({ questions, storageKey }: { questions: ClientQuestion[]; storageKey: string }) {
+/** preview — режим для /dev/qa: показать вопрос №position или экран анализа без сервера и localStorage. */
+export type TestPreview = { position: number; phase?: "question" | "analysing" };
+
+export function TestRunner({ questions, storageKey, preview }: { questions: ClientQuestion[]; storageKey: string; preview?: TestPreview }) {
   const router = useRouter();
   const [state, setState] = useState<Saved | null>(null);
   const [phase, setPhase] = useState<"loading" | "question" | "analysing" | "error">("loading");
@@ -67,10 +70,10 @@ export function TestRunner({ questions, storageKey }: { questions: ClientQuestio
   const update = useCallback(
     (s: Saved) => {
       stateRef.current = s;
-      store(storageKey, s);
+      if (!preview) store(storageKey, s);
       setState(s);
     },
-    [storageKey],
+    [storageKey, preview],
   );
 
   const send = useCallback(async (testId: string, questionId: string, value: number | string) => {
@@ -100,6 +103,11 @@ export function TestRunner({ questions, storageKey }: { questions: ClientQuestio
 
   // Старт или продолжение: сервер знает свои ответы, localStorage — то, что могло не доехать.
   useEffect(() => {
+    if (preview) {
+      update({ testId: "preview", answers: {}, position: preview.position, pending: [] });
+      setPhase(preview.phase ?? "question");
+      return;
+    }
     let cancelled = false;
     (async () => {
       const local = load(storageKey);
@@ -124,10 +132,11 @@ export function TestRunner({ questions, storageKey }: { questions: ClientQuestio
     return () => {
       cancelled = true;
     };
-  }, [questions, storageKey, update, flush]);
+  }, [questions, storageKey, update, flush, preview]);
 
   const finish = useCallback(async () => {
     setPhase("analysing");
+    if (preview) return; // в превью экран анализа остаётся на месте
     const started = Date.now();
     try {
       if (!(await flush())) throw new Error("pending");
@@ -145,7 +154,7 @@ export function TestRunner({ questions, storageKey }: { questions: ClientQuestio
       setPhase("question");
       setError("Не удалось сохранить ответы. Проверь интернет и нажми ещё раз.");
     }
-  }, [flush, router, storageKey]);
+  }, [flush, router, storageKey, preview]);
 
   const answer = useCallback(
     (value: number | string) => {
@@ -158,17 +167,17 @@ export function TestRunner({ questions, storageKey }: { questions: ClientQuestio
       const next: Saved = {
         ...s,
         answers: { ...s.answers, [q.id]: value },
-        pending: s.pending.includes(q.id) ? s.pending : [...s.pending, q.id],
+        pending: preview || s.pending.includes(q.id) ? s.pending : [...s.pending, q.id],
       };
       update(next);
-      void flush();
+      if (!preview) void flush();
       setTimeout(() => {
         advancing.current = false;
         if (isLast) void finish();
         else update({ ...stateRef.current!, position: stateRef.current!.position + 1 });
       }, 260);
     },
-    [questions, update, flush, finish],
+    [questions, update, flush, finish, preview],
   );
 
   const back = () => {

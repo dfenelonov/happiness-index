@@ -5,8 +5,22 @@ import { useState } from "react";
 import { track } from "./analytics";
 
 /** Фейковая дверь подписки: клик — интерес, email — подтверждённый интерес. Оплаты нет. */
-export function FakeDoor({ source, resultId, name, price, pitch }: { source: "result" | "report"; resultId: string; name: string; price: number; pitch: string }) {
-  const [open, setOpen] = useState(false);
+export function FakeDoor({
+  source,
+  resultId,
+  name,
+  price,
+  pitch,
+  initiallyOpen = false,
+}: {
+  source: "result" | "report";
+  resultId: string;
+  name: string;
+  price: number;
+  pitch: string;
+  initiallyOpen?: boolean; // ?open=tracker — для /dev/qa
+}) {
+  const [open, setOpen] = useState(initiallyOpen);
   const [email, setEmail] = useState("");
   const [agree, setAgree] = useState(false);
   const [state, setState] = useState<"idle" | "busy" | "done">("idle");

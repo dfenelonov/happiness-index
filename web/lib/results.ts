@@ -1,6 +1,7 @@
 import { and, count, eq, lt, ne } from "drizzle-orm";
 import { appConfig } from "./config";
 import { getDb, schema } from "./db";
+import { notQa } from "./qa";
 import { percentileFromCounts } from "./scoring";
 
 export async function getResult(id: string) {
@@ -24,9 +25,10 @@ export async function resultPercentile(
 ): Promise<{ value: number | null; usesSeed: boolean }> {
   const db = getDb();
   const t = schema.results;
-  const [{ real }] = await db.select({ real: count() }).from(t).where(eq(t.isSeed, false));
+  // демо-данные /dev/qa (anon_id «qa-…») не считаются ни в пороге, ни в сравнении
+  const [{ real }] = await db.select({ real: count() }).from(t).where(and(eq(t.isSeed, false), notQa(t.anonId)));
   const usesSeed = real < threshold;
-  const scope = usesSeed ? ne(t.id, id) : and(eq(t.isSeed, false), ne(t.id, id));
+  const scope = usesSeed ? and(ne(t.id, id), notQa(t.anonId)) : and(eq(t.isSeed, false), ne(t.id, id), notQa(t.anonId));
   const [{ total }] = await db.select({ total: count() }).from(t).where(scope);
   const [{ below }] = await db.select({ below: count() }).from(t).where(and(scope, lt(t.index, index)));
   return { value: percentileFromCounts(below, total), usesSeed };

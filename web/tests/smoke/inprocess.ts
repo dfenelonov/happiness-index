@@ -198,6 +198,27 @@ async function main() {
   }
   check("404", (await call("GET", "/result/00000000-0000-4000-8000-000000000000")).status === 404);
 
+  // /dev/qa: в production — только по паролю админки; демо-данные не попадают в админку
+  const auth = `admin:${process.env.ADMIN_PASSWORD}`;
+  check("/dev/qa без пароля в production → 401", (await call("GET", "/dev/qa")).status === 401);
+  r = await call("POST", "/dev/qa/seed", { auth });
+  check("/dev/qa: демо-данные созданы, браузер стал QA-посетителем", r.status === 303 && (jar.get("hi_anon") ?? "").startsWith("qa-"));
+  r = await call("GET", "/dev/qa", { auth });
+  const qaLinks = [...r.text.matchAll(/href="(\/result\/[0-9a-f-]{36})"/g)].map((m) => m[1]).filter((h) => !h.includes("00000000-0000")); // ссылка на 404 — намеренная
+  check("/dev/qa: 8 типов × 3 уровня + гость", r.status === 200 && q.archetypes.every((a) => r.text.includes(a.name)) && new Set(qaLinks).size >= 25, `${new Set(qaLinks).size} результатов`);
+  const qaPages = [...new Set([...r.text.matchAll(/href="(\/(?:pay\/mock|order|report|dev\/qa\/question)\/[^"]+)"/g)].map((m) => m[1].replace(/&amp;/g, "&")))];
+  let qaOk = 0;
+  for (const href of [...new Set(qaLinks)].concat(qaPages)) {
+    const res = await call("GET", href, { auth });
+    if (res.status === 200) qaOk++;
+    else console.log(`  ${href} → ${res.status}`);
+  }
+  check("/dev/qa: все ссылки на результаты, оплату, отчёт и превью вопросов открываются", qaOk === new Set(qaLinks).size + qaPages.length, `${qaOk} страниц`);
+  r = await call("GET", `${qaLinks[0]}?price=490&open=checkout`, { auth });
+  check("/dev/qa: пейволл с открытой формой и ценой 490", r.text.includes('data-testid="checkout-form"') && r.text.includes("490"));
+  r = await call("GET", "/admin", { auth });
+  check("/admin не показывает демо-заказы", r.status === 200 && !r.text.includes("qa@example.ru"));
+
   console.log(failures ? `\n${failures} проверок не прошли` : "\nВсе проверки прошли");
   await app.close();
   process.exit(failures ? 1 : 0);
