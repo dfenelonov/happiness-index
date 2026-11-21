@@ -59,10 +59,13 @@ npm run test:e2e                              # Playwright (после build), �
 npm run screenshots                           # скриншоты экранов → docs/screenshots (после build)
 npm run texts:review                          # пересобрать docs/TEXTS_REVIEW.md после правки текстов
 # /dev/qa — галерея всех экранов с демо-данными (вне production; в production — пароль админки)
+node --import tsx scripts/backup.ts           # бэкап в S3 (BACKUP_*); restore.ts --latest --to <файл> — проверка
 npm run db:generate                           # новая миграция после правки lib/db/schema.ts
 docker compose up -d --build                  # прод-запуск; с HTTPS: --profile https (DOMAIN в .env)
 ```
 
+В production приложение не стартует без настоящей кассы, сильного `ADMIN_PASSWORD` и `SUPPORT_EMAIL`
+(`lib/env-guard.ts`); production-сборку на моках гоняй с `UNSAFE_SKIP_PRODUCTION_CHECKS=true` (CI, smoke, e2e).
 Без ключей всё работает на моках: оплата — страница `/pay/mock/{id}` с подписанным вебхуком, отчёт —
 шаблоны, письма — лог с замаскированным адресом, Метрика выключена. `/admin` — basic auth по `ADMIN_PASSWORD`.
 
