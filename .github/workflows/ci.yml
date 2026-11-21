@@ -81,6 +81,14 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
+      - name: Прод-конфигурация не задаёт UNSAFE_SKIP_PRODUCTION_CHECKS
+        run: |
+          if grep -n "UNSAFE_SKIP_PRODUCTION_CHECKS" docker-compose.yml .env.example; then
+            echo "Флаг обхода проверок найден в прод-конфигурации"; exit 1
+          fi
+          if docker compose --profile https config | grep -n "UNSAFE_SKIP_PRODUCTION_CHECKS"; then
+            echo "Флаг обхода проверок попал в итоговый compose"; exit 1
+          fi
       - run: docker compose build app backup
       - name: Без настроек production контейнер не стартует
         run: |
@@ -88,7 +96,7 @@ jobs:
           out=$(docker compose run --rm --no-deps app 2>&1); code=$?
           echo "$out" | tail -8
           [ $code -ne 0 ] && echo "$out" | grep -q "Запуск в production остановлен"
-      - name: Start container (моки, проверки production отключены явно)
+      - name: Start container (моки; флаг задаётся только здесь, в CI)
         run: |
           printf "UNSAFE_SKIP_PRODUCTION_CHECKS=true\nSUPPORT_EMAIL=support@example.ru\n" > .env
           docker compose up -d app

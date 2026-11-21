@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { breakdown, funnelMetrics, questionReach, type Color, type Metric } from "@/lib/admin-metrics";
 import { archetypeCounts, loadEvents, loadLeads, loadOrders, reportStats, revenueByVariant } from "@/lib/admin-data";
 import { appConfig, questionnaire } from "@/lib/config";
+import { UNSAFE_WARNING, unsafeProduction } from "@/lib/env-guard";
 
 export const metadata: Metadata = { title: "Админка — Индекс счастья", robots: { index: false } };
 export const dynamic = "force-dynamic";
@@ -52,6 +53,11 @@ export default async function Admin({ searchParams }: { searchParams: Promise<{ 
 
   return (
     <div className="mx-auto max-w-6xl space-y-8 px-5 pb-10 sm:px-8" data-testid="admin">
+      {unsafeProduction() && (
+        <div role="alert" className="rounded-2xl border-2 border-[#b42318] bg-[#fde2e0] px-5 py-4 font-semibold text-[#7a1b12]" data-testid="unsafe-banner">
+          ⚠ {UNSAFE_WARNING}
+        </div>
+      )}
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="eyebrow">Эксперимент MVP</p>

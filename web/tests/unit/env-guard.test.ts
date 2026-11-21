@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { devToolsAllowed, mockPaymentsEnabled, productionProblems, receiptMode } from "@/lib/env-guard";
+import { signAdminSession, verifyAdminSession } from "@/lib/admin-auth";
+import { devToolsAllowed, mockPaymentsEnabled, productionProblems, receiptMode, unsafeProduction } from "@/lib/env-guard";
 import { support, supportLine } from "@/lib/support";
 
 const STRONG = "k8#Vq2!mZr7Lp9@xW4";
@@ -11,7 +12,6 @@ const ok = {
   ADMIN_PASSWORD: STRONG,
   SUPPORT_EMAIL: "help@example.ru",
 };
-const basic = (p: string) => `Basic ${Buffer.from(`admin:${p}`).toString("base64")}`;
 
 describe("проверки production при старте", () => {
   it("корректное окружение — проблем нет", () => {
@@ -59,12 +59,41 @@ describe("/dev/* (галерея, почтовый ящик)", () => {
     expect(devToolsAllowed(null, { NODE_ENV: "development" })).toBe(true);
   });
 
-  it("в production без пароля или с неверным — 404, с верным — открыто", () => {
+  it("в production — только с действующей сессией админа, иначе 404", () => {
     const env = { NODE_ENV: "production", ADMIN_PASSWORD: STRONG };
     expect(devToolsAllowed(null, env)).toBe(false);
-    expect(devToolsAllowed(basic("wrong"), env)).toBe(false);
-    expect(devToolsAllowed(basic(STRONG), env)).toBe(true);
-    expect(devToolsAllowed(basic(""), { NODE_ENV: "production" })).toBe(false);
+    expect(devToolsAllowed("garbage", env)).toBe(false);
+    expect(devToolsAllowed(signAdminSession(STRONG), env)).toBe(true);
+    expect(devToolsAllowed(signAdminSession(STRONG), { NODE_ENV: "production" })).toBe(false); // без пароля в env
+  });
+});
+
+describe("сессия админа (cookie после входа в /admin)", () => {
+  const t0 = Date.parse("2026-12-01T00:00:00Z");
+
+  it("действует 12 часов", () => {
+    const token = signAdminSession(STRONG, t0);
+    expect(verifyAdminSession(token, STRONG, t0 + 11.9 * 3600_000)).toBe(true);
+    expect(verifyAdminSession(token, STRONG, t0 + 12 * 3600_000)).toBe(false);
+  });
+
+  it("подделка срока или подписи не проходит", () => {
+    const [exp, sig] = signAdminSession(STRONG, t0).split(".");
+    expect(verifyAdminSession(`${Number(exp) + 3600}.${sig}`, STRONG, t0)).toBe(false);
+    expect(verifyAdminSession(`${exp}.${sig.slice(0, -2)}xx`, STRONG, t0)).toBe(false);
+    expect(verifyAdminSession(`${exp}`, STRONG, t0)).toBe(false);
+  });
+
+  it("смена ADMIN_PASSWORD обнуляет все сессии", () => {
+    expect(verifyAdminSession(signAdminSession(STRONG, t0), `${STRONG}-new`, t0)).toBe(false);
+  });
+});
+
+describe("обход проверок в production", () => {
+  it("unsafeProduction — только при флаге и NODE_ENV=production (для плашки в /admin и алерта)", () => {
+    expect(unsafeProduction({ NODE_ENV: "production", UNSAFE_SKIP_PRODUCTION_CHECKS: "true" })).toBe(true);
+    expect(unsafeProduction({ NODE_ENV: "production" })).toBe(false);
+    expect(unsafeProduction({ NODE_ENV: "development", UNSAFE_SKIP_PRODUCTION_CHECKS: "true" })).toBe(false);
   });
 });
 

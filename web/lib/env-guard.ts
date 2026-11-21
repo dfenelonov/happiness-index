@@ -1,4 +1,4 @@
-import { checkBasicAuth } from "./admin-auth";
+import { verifyAdminSession } from "./admin-auth";
 
 // Проверки окружения. В production приложение не стартует, пока список проблем не пуст
 // (instrumentation.ts → register). Чистые функции от env — покрыты юнит-тестами.
@@ -61,6 +61,12 @@ export function productionProblems(env: Env = process.env): string[] {
   return problems;
 }
 
+/** Текст предупреждения о включённом обходе проверок — для лога, алерта и плашки в /admin. */
+export const UNSAFE_WARNING =
+  "UNSAFE_SKIP_PRODUCTION_CHECKS=true в production: проверки кассы, пароля админки и контактов поддержки ОТКЛЮЧЕНЫ, мок-касса доступна. Это допустимо только в CI — убери флаг из окружения сервера.";
+
+export const unsafeProduction = (env: Env = process.env) => isProduction(env) && checksSkipped(env);
+
 /** Мок-касса (страница и её кнопки): только при PAYMENT_PROVIDER=mock. В production это возможно лишь в обход проверок. */
 export function mockPaymentsEnabled(env: Env = process.env): boolean {
   if ((env.PAYMENT_PROVIDER || "mock") !== "mock") return false;
@@ -68,11 +74,10 @@ export function mockPaymentsEnabled(env: Env = process.env): boolean {
 }
 
 /**
- * /dev/* (галерея, почтовый ящик): вне production открыто; в production — только с верным паролем админки,
- * иначе 404 (страницы как будто нет). Браузер присылает пароль сам после входа в /admin.
+ * /dev/* (галерея, почтовый ящик): вне production открыто; в production — только с действующей
+ * сессией админа (cookie после входа в /admin, 12 часов), иначе 404 — страницы как будто нет.
  */
-export function devToolsAllowed(authorization: string | null, env: Env = process.env): boolean {
+export function devToolsAllowed(sessionCookie: string | undefined | null, env: Env = process.env, now = Date.now()): boolean {
   if (!isProduction(env)) return true;
-  if (!env.ADMIN_PASSWORD || !authorization) return false;
-  return checkBasicAuth(authorization, env.ADMIN_PASSWORD) === null;
+  return verifyAdminSession(sessionCookie, env.ADMIN_PASSWORD, now);
 }

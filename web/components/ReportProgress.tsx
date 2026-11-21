@@ -67,12 +67,12 @@ export function ReportProgress({ orderId, email, initial }: { orderId: string; e
           </li>
         ))}
       </ol>
-      <p className="mt-6 text-sm text-muted tabular-nums" data-testid="report-elapsed">
-        Прошло {Math.floor(elapsed / 60) ? `${Math.floor(elapsed / 60)} мин ` : ""}
-        {elapsed % 60} с. Обычно до пары минут.
+      <p className="mt-6 rounded-2xl bg-[#fff6e8] px-4 py-3 text-sm" data-testid="report-eta">
+        Обычно 1–2 минуты. Можно закрыть вкладку — ссылка придёт на почту <b>{email}</b>.
       </p>
-      <p className="mt-4 rounded-2xl bg-[#fff6e8] px-4 py-3 text-sm">
-        Вкладку можно закрыть — ссылку на разбор пришлём на <b>{email}</b>.
+      <p className="mt-3 text-xs text-muted tabular-nums" data-testid="report-elapsed">
+        Прошло {Math.floor(elapsed / 60) ? `${Math.floor(elapsed / 60)} мин ` : ""}
+        {elapsed % 60} с
       </p>
     </div>
   );

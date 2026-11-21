@@ -194,12 +194,14 @@ async function main() {
   r = await call("POST", "/api/restore", { body: JSON.stringify({ email: "BUYER@example.ru" }) });
   const r2 = await call("POST", "/api/restore", { body: JSON.stringify({ email: "nobody@example.ru" }) });
   check("восстановление: одинаковый ответ, есть покупки или нет", r.status === 200 && r2.status === 200 && json(r).message === json(r2).message);
-  r = await call("GET", "/dev/mailbox", { auth: `admin:${process.env.ADMIN_PASSWORD}` });
+  await call("GET", "/admin", { auth: `admin:${process.env.ADMIN_PASSWORD}` }); // вход открывает сессию для /dev/*
+  r = await call("GET", "/dev/mailbox");
   check("/dev/mailbox: письмо с разбором и письмо со ссылками", r.text.includes("Твой персональный разбор готов") && r.text.includes("Ссылки на твои разборы") && r.text.includes(`/report/${checkout.orderId}`));
 
   check("админка без пароля → 401", (await call("GET", "/admin")).status === 401);
   r = await call("GET", "/admin", { auth: `admin:${process.env.ADMIN_PASSWORD}` });
   check("админка 200", r.status === 200);
+  check("красная плашка: проверки production отключены (smoke идёт с флагом)", r.text.includes('data-testid="unsafe-banner"'));
   check("админка: метрики, воронка, заказ, email", ["Старт → завершил тест", "Воронка", "Где отваливаются", "buyer@example.ru", "lead@example.ru", "smoke"].every((s) => r.text.includes(s)));
   r = await call("GET", "/api/admin/export/orders", { auth: `admin:${process.env.ADMIN_PASSWORD}` });
   check("CSV заказов", r.status === 200 && r.text.includes("buyer@example.ru"));
@@ -209,10 +211,15 @@ async function main() {
   }
   check("404", (await call("GET", "/result/00000000-0000-4000-8000-000000000000")).status === 404);
 
-  // /dev/qa: в production — только по паролю админки; демо-данные не попадают в админку
+  // /dev/qa: в production — только с сессией админа (cookie после входа в /admin); демо-данные не попадают в админку
   const auth = `admin:${process.env.ADMIN_PASSWORD}`;
-  check("/dev/qa без пароля в production → 404", (await call("GET", "/dev/qa")).status === 404);
-  check("/dev/qa с неверным паролем → 404", (await call("GET", "/dev/qa", { auth: "admin:wrong" })).status === 404);
+  jar.delete("hi_admin");
+  check("/dev/qa без сессии в production → 404 (даже с паролем в заголовке)", (await call("GET", "/dev/qa", { auth })).status === 404);
+  jar.set("hi_admin", "9999999999.forged");
+  check("/dev/qa с поддельной сессией → 404", (await call("GET", "/dev/qa")).status === 404);
+  r = await call("GET", "/admin", { auth });
+  const session = r.headers["set-cookie"]?.find((c) => c.startsWith("hi_admin=")) ?? "";
+  check("вход в /admin ставит httpOnly-сессию на 12 часов", /HttpOnly/i.test(session) && /Max-Age=43200/i.test(session), session.split(";").slice(1).join(";"));
   r = await call("POST", "/dev/qa/seed", { auth });
   check("/dev/qa: демо-данные созданы, браузер стал QA-посетителем", r.status === 303 && (jar.get("hi_anon") ?? "").startsWith("qa-"));
   r = await call("GET", "/dev/qa", { auth });
