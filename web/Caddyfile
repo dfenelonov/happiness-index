@@ -1,0 +1,5 @@
+# Автоматический HTTPS (Let's Encrypt). A-запись домена должна указывать на этот сервер.
+{$DOMAIN} {
+	encode gzip
+	reverse_proxy app:3000
+}

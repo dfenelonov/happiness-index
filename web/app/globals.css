@@ -1,0 +1,135 @@
+@import "tailwindcss";
+
+@theme {
+  --color-cream: #fbf6ef;
+  --color-paper: #fffdf9;
+  --color-ink: #2b1d2e;
+  --color-muted: #75656f;
+  --color-line: #eadfd3;
+  --color-accent: #c2553a;
+  --color-accent-dark: #a5432b;
+  --color-gold: #e3a04a;
+  --color-plum: #6b3e5e;
+  --color-sage: #6f8f72;
+  --font-sans: var(--font-golos), system-ui, sans-serif;
+  --font-serif: var(--font-lora), Georgia, serif;
+}
+
+@layer base {
+  html {
+    background: var(--color-cream);
+    color: var(--color-ink);
+    -webkit-font-smoothing: antialiased;
+  }
+  body {
+    font-family: var(--font-sans);
+    min-height: 100vh;
+  }
+  ::selection {
+    background: #f3c9b5;
+  }
+}
+
+/* Тёплый фон с мягкими пятнами света */
+.glow {
+  background:
+    radial-gradient(60rem 30rem at 85% -10%, rgba(227, 160, 74, 0.22), transparent 60%),
+    radial-gradient(50rem 30rem at -10% 10%, rgba(194, 85, 58, 0.14), transparent 60%),
+    radial-gradient(40rem 30rem at 50% 110%, rgba(107, 62, 94, 0.1), transparent 60%);
+}
+
+.card {
+  background: var(--color-paper);
+  border: 1px solid var(--color-line);
+  border-radius: 1.5rem;
+  box-shadow: 0 1px 0 rgba(43, 29, 46, 0.03), 0 20px 50px -30px rgba(107, 62, 94, 0.35);
+}
+
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border-radius: 999px;
+  padding: 0.95rem 1.9rem;
+  font-weight: 600;
+  color: white;
+  background: linear-gradient(135deg, #d0603f, #b04a6a);
+  box-shadow: 0 12px 30px -12px rgba(176, 74, 106, 0.6);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
+}
+.btn-primary:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 16px 36px -12px rgba(176, 74, 106, 0.7);
+}
+.btn-primary:disabled {
+  filter: grayscale(0.4);
+  opacity: 0.7;
+  transform: none;
+}
+.btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border-radius: 999px;
+  padding: 0.7rem 1.3rem;
+  font-weight: 500;
+  border: 1px solid var(--color-line);
+  background: var(--color-paper);
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+.btn-ghost:hover {
+  border-color: #d8c3b2;
+  background: #fff8f0;
+}
+
+.eyebrow {
+  font-size: 0.75rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+  font-weight: 600;
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.rise {
+  animation: rise 0.55s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+.rise-2 {
+  animation-delay: 0.12s;
+}
+.rise-3 {
+  animation-delay: 0.24s;
+}
+
+@keyframes pulse-soft {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.9;
+  }
+  50% {
+    transform: scale(1.08);
+    opacity: 1;
+  }
+}
+.pulse-soft {
+  animation: pulse-soft 1.6s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rise,
+  .pulse-soft {
+    animation: none;
+  }
+}
