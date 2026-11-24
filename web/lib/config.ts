@@ -121,6 +121,14 @@ const AppConfigSchema = z.object({
     refund_days: z.number().int().min(0),
   }),
   paywall: z.object({ title: z.string(), bullets: z.array(z.string()).min(1) }),
+  legal: z.object({
+    published_at: z.string(),
+    payment_provider: z.string(),
+    hosting: z.string(),
+    llm_provider: z.string(),
+    retention: z.string(),
+    deletion_days: z.number().int().min(1),
+  }),
   fake_door: z.object({ name: z.string(), price_rub_month: z.number().int().positive(), pitch: z.string() }),
   percentile: z.object({ real_results_threshold: z.number().int().min(0) }),
   alerts: z.object({

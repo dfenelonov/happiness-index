@@ -11,6 +11,8 @@ const ok = {
   YOOKASSA_SECRET_KEY: "test_abc",
   ADMIN_PASSWORD: STRONG,
   SUPPORT_EMAIL: "help@example.ru",
+  SELLER_NAME: "Иванов И.И.",
+  SELLER_INN: "500123456750", // синтетический, с верными контрольными цифрами
 };
 
 describe("проверки production при старте", () => {
@@ -29,6 +31,12 @@ describe("проверки production при старте", () => {
     ["SUPPORT_EMAIL не задан", { SUPPORT_EMAIL: undefined }, /SUPPORT_EMAIL/],
     ["SUPPORT_EMAIL некорректен", { SUPPORT_EMAIL: "support" }, /SUPPORT_EMAIL/],
     ["RECEIPT_MODE неизвестен", { RECEIPT_MODE: "ofd" }, /RECEIPT_MODE/],
+    ["SELLER_NAME не задан", { SELLER_NAME: "" }, /SELLER_NAME/],
+    ["SELLER_INN не задан", { SELLER_INN: undefined }, /SELLER_INN/],
+    ["SELLER_INN с опечаткой", { SELLER_INN: "500123456751" }, /SELLER_INN/],
+    ["SELLER_INN не 12 цифр", { SELLER_INN: "5001234567" }, /SELLER_INN/],
+    ["ИП без ОГРНИП", { SELLER_STATUS: "ip" }, /SELLER_OGRNIP/],
+    ["SELLER_STATUS неизвестен", { SELLER_STATUS: "ooo" }, /SELLER_STATUS/],
   ])("%s → отказ старта", (_n, patch, msg) => {
     const problems = productionProblems({ ...ok, ...patch });
     expect(problems).toHaveLength(1);

@@ -40,6 +40,8 @@ export default defineConfig({
           MOCK_WEBHOOK_SECRET: "e2e-secret",
           UNSAFE_SKIP_PRODUCTION_CHECKS: "true", // next start = production, а здесь моки
           SUPPORT_EMAIL: "support@example.ru",
+          SELLER_NAME: "Иванов И.И.",
+          SELLER_INN: "500123456750",
         },
       },
 });

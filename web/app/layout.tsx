@@ -3,6 +3,7 @@ import localFont from "next/font/local";
 import Link from "next/link";
 import { CookieBanner } from "@/components/CookieBanner";
 import { Metrika } from "@/components/Metrika";
+import { SellerLine } from "@/components/SellerLine";
 import { SupportContacts } from "@/components/SupportContacts";
 import { appUrl } from "@/lib/report/generate";
 import "./globals.css";
@@ -62,6 +63,7 @@ function Footer() {
         <div className="space-y-1">
           <p>Не является медицинской или психологической услугой.</p>
           <SupportContacts lead="Поддержка:" />
+          <SellerLine />
         </div>
         <nav className="flex flex-wrap gap-x-5 gap-y-2">
           <Link href="/legal/offer" className="hover:text-ink">Оферта</Link>

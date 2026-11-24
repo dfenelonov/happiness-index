@@ -1,4 +1,5 @@
 import { verifyAdminSession } from "./admin-auth";
+import { sellerProblems } from "./seller";
 
 // Проверки окружения. В production приложение не стартует, пока список проблем не пуст
 // (instrumentation.ts → register). Чистые функции от env — покрыты юнит-тестами.
@@ -53,6 +54,7 @@ export function productionProblems(env: Env = process.env): string[] {
   if (pass.length < MIN_ADMIN_PASSWORD) problems.push(`ADMIN_PASSWORD короче ${MIN_ADMIN_PASSWORD} символов`);
   else if (WEAK_PASSWORDS.has(pass.toLowerCase()) || new Set(pass).size < 5) problems.push("ADMIN_PASSWORD слишком простой");
   if (!env.SUPPORT_EMAIL || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(env.SUPPORT_EMAIL)) problems.push("SUPPORT_EMAIL не задан или некорректен");
+  problems.push(...sellerProblems(env));
   try {
     receiptMode(env);
   } catch (e) {

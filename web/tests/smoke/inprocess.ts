@@ -212,8 +212,10 @@ async function main() {
   check("CSV заказов", r.status === 200 && r.text.includes("buyer@example.ru"));
   for (const doc of ["offer", "privacy", "consent"]) {
     r = await call("GET", `/legal/${doc}`);
-    check(`юр. страница ${doc}`, r.status === 200 && r.text.includes("[ФИО ИП]"));
+    check(`юр. страница ${doc}: реквизиты из .env`, r.status === 200 && r.text.includes(`ИНН ${process.env.SELLER_INN}`) && !r.text.includes("[реквизиты]"));
   }
+  r = await call("GET", "/");
+  check("футер: ФИО и ИНН продавца на каждой странице", r.text.includes('data-testid="seller"') && r.text.includes(`ИНН ${process.env.SELLER_INN}`));
   check("404", (await call("GET", "/result/00000000-0000-4000-8000-000000000000")).status === 404);
 
   // /dev/qa: в production — только с сессией админа (cookie после входа в /admin); демо-данные не попадают в админку

@@ -20,7 +20,7 @@
     "test:e2e": "playwright test --project=e2e",
     "screenshots": "playwright test --project=screenshots",
     "check": "npm run lint && npm run typecheck && npm run test && npm run build && npm run test:e2e",
-    "smoke": "rm -f ./data/smoke.db && DATABASE_URL=file:./data/smoke.db node --import tsx scripts/migrate.ts && DATABASE_URL=file:./data/smoke.db node --import tsx scripts/seed.ts && DATABASE_URL=file:./data/smoke.db UNSAFE_SKIP_PRODUCTION_CHECKS=true ADMIN_PASSWORD=smoke APP_URL=http://hi.test NODE_ENV=production node --import tsx tests/smoke/inprocess.ts",
+    "smoke": "rm -f ./data/smoke.db && DATABASE_URL=file:./data/smoke.db node --import tsx scripts/migrate.ts && DATABASE_URL=file:./data/smoke.db node --import tsx scripts/seed.ts && DATABASE_URL=file:./data/smoke.db UNSAFE_SKIP_PRODUCTION_CHECKS=true ADMIN_PASSWORD=smoke SELLER_NAME=Иванов_И.И. SELLER_INN=500123456750 APP_URL=http://hi.test NODE_ENV=production node --import tsx tests/smoke/inprocess.ts",
     "texts:review": "node --import tsx scripts/texts-review.ts"
   },
   "dependencies": {
