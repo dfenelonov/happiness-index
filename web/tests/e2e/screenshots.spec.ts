@@ -24,6 +24,7 @@ test("скриншоты экранов", async ({ page, browser }) => {
   await expect(page.getByTestId("progress-label")).toHaveText("Вопрос 2 из 28");
   await shot(page, "03-test-question", false);
   await answerQuestions(page, 2, 27);
+  await expect(page.getByTestId("progress-label")).toHaveText("Вопрос 28 из 28"); // иначе клик уходит в переход между вопросами
   await page.getByTestId("answer-option").nth(3).click();
   await expect(page.getByTestId("analysing")).toBeVisible();
   await shot(page, "04-analysing", false);

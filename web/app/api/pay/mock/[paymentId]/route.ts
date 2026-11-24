@@ -1,4 +1,5 @@
-import { NextResponse, type NextRequest } from "next/server";
+import { type NextRequest } from "next/server";
+import { seeOther } from "@/lib/http";
 import { MOCK_SIGNATURE_HEADER, signMockWebhook } from "@/lib/payments/mock";
 import { mockPaymentsEnabled } from "@/lib/env-guard";
 import { getOrderByPayment } from "@/lib/payments/service";
@@ -23,5 +24,5 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ pay
     body,
   });
   if (!res.ok) return new Response("Вебхук не принят", { status: 502 });
-  return NextResponse.redirect(new URL(`/order/${order.id}`, req.nextUrl.origin), 303);
+  return seeOther(`/order/${order.id}`);
 }

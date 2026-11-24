@@ -56,7 +56,7 @@ test("лендинг → тест (назад, продолжение после
   // Фейковая дверь
   await page.getByTestId("fake-door-open").first().click();
   const modal = page.getByTestId("fake-door-modal");
-  await modal.getByLabel("Email").fill("tracker@example.ru");
+  await modal.getByLabel("Email", { exact: true }).fill("tracker@example.ru");
   await modal.getByRole("checkbox").check();
   await modal.getByRole("button", { name: "Сообщить о запуске" }).click();
   await expect(modal).toContainText("Спасибо");
